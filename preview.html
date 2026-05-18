@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Pocket Dungeon: Tiny Doom Crew v0.3.6</title>
+<style>
+  :root {
+    --bg: #09080f;
+    --panel: #151320;
+    --panel2: #1e1a2e;
+    --line: #39304f;
+    --text: #f1ecff;
+    --muted: #a99fc2;
+    --gold: #ffd166;
+    --red: #ff5c7a;
+    --green: #63f0a1;
+    --blue: #6bbcff;
+    --purple: #c084fc;
+    --orange: #ff9f43;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at top, rgba(118, 70, 255, .18), transparent 35%),
+      radial-gradient(circle at bottom right, rgba(255, 209, 102, .08), transparent 30%),
+      var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(9, 8, 15, .92);
+    backdrop-filter: blur(10px);
+  }
+
+  .topbar {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .title {
+    font-weight: 900;
+    letter-spacing: .04em;
+    line-height: 1.05;
+  }
+
+  .title small {
+    display: block;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: .72rem;
+    margin-top: 3px;
+  }
+
+  .stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    font-size: .82rem;
+  }
+
+  .pill {
+    border: 1px solid var(--line);
+    background: rgba(30, 26, 46, .85);
+    border-radius: 999px;
+    padding: 6px 9px;
+    white-space: nowrap;
+  }
+
+  .pill strong { color: var(--gold); }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  @media (min-width: 760px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .card {
+    background: linear-gradient(180deg, rgba(30, 26, 46, .96), rgba(21, 19, 32, .96));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: .95rem;
+    letter-spacing: .04em;
+    color: var(--gold);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .unit {
+    border: 1px solid var(--line);
+    background: rgba(9, 8, 15, .35);
+    border-radius: 14px;
+    padding: 10px;
+    margin-bottom: 9px;
+  }
+
+  .unit:last-child { margin-bottom: 0; }
+
+  .unit-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .unit-name {
+    font-weight: 900;
+  }
+
+  .unit-name .emoji {
+    margin-right: 5px;
+  }
+
+  .unit-meta {
+    color: var(--muted);
+    font-size: .78rem;
+  }
+
+  .bar-wrap {
+    height: 13px;
+    background: #08070d;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bar {
+    height: 100%;
+    width: 100%;
+    border-radius: 999px;
+    transition: width .18s linear;
+  }
+
+  .hp-player { background: linear-gradient(90deg, var(--green), #d0ff9f); }
+  .hp-enemy { background: linear-gradient(90deg, #ff477e, #ffb86c); }
+
+  .unit-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: .74rem;
+    margin-top: 8px;
+  }
+
+  .unit-stats span {
+    border: 1px solid rgba(57, 48, 79, .8);
+    border-radius: 999px;
+    padding: 4px 7px;
+  }
+
+  button {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--panel2);
+    color: var(--text);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 0 rgba(0,0,0,.28);
+    touch-action: manipulation;
+  }
+
+  button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0,0,0,.28);
+  }
+
+  button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .primary {
+    border-color: rgba(255, 209, 102, .65);
+    background: linear-gradient(180deg, #5c3b13, #2a1c10);
+    color: #ffe7a3;
+  }
+
+  .danger {
+    border-color: rgba(255, 92, 122, .65);
+    background: linear-gradient(180deg, #571828, #281018);
+    color: #ffd3dd;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+
+  .full { grid-column: 1 / -1; }
+
+  .choices {
+    display: grid;
+    gap: 9px;
+  }
+
+  .choice {
+    text-align: left;
+    padding: 12px;
+  }
+
+  .choice strong {
+    display: block;
+    color: var(--gold);
+    margin-bottom: 3px;
+  }
+
+  .choice small {
+    color: var(--muted);
+    display: block;
+    line-height: 1.3;
+  }
+
+  .log {
+    height: 220px;
+    overflow-y: auto;
+    background: rgba(9, 8, 15, .5);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px;
+    font-size: .84rem;
+    line-height: 1.35;
+  }
+
+  .log p {
+    margin: 0 0 7px;
+    color: var(--muted);
+  }
+
+  .log p.important { color: var(--gold); }
+  .log p.good { color: var(--green); }
+  .log p.bad { color: #ff9aad; }
+  .log p.weird { color: var(--purple); }
+
+  .status {
+    color: var(--muted);
+    font-size: .86rem;
+    line-height: 1.35;
+  }
+
+  .victory-banner {
+    border: 1px solid rgba(99, 240, 161, .45);
+    background: rgba(99, 240, 161, .09);
+    color: #c5ffdd;
+    padding: 10px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+  }
+
+  .hidden { display: none !important; }
+
+
+  .choice.premium {
+    border-color: rgba(255, 209, 102, .8);
+    background: linear-gradient(180deg, rgba(103, 69, 22, .95), rgba(42, 28, 16, .95));
+  }
+
+  .choice.premium:disabled {
+    opacity: .48;
+  }
+
+  .upgrade-list {
+    display: grid;
+    gap: 7px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .upgrade-item {
+    border: 1px solid rgba(57, 48, 79, .8);
+    background: rgba(9, 8, 15, .35);
+    border-radius: 12px;
+    padding: 8px 10px;
+    color: var(--muted);
+    font-size: .82rem;
+  }
+
+  .upgrade-item strong {
+    color: var(--gold);
+  }
+
+  .footer-note {
+    color: var(--muted);
+    font-size: .75rem;
+    text-align: center;
+    padding-bottom: 22px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="title">
+      POCKET DUNGEON
+      <small>Tiny Doom Crew v0.3.6</small>
+    </div>
+    <div class="stats">
+      <div class="pill">Floor <strong id="floorText">1</strong></div>
+      <div class="pill">Gold <strong id="goldText">0</strong></div>
+      <div class="pill">Best <strong id="bestText">1</strong></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>
+      Dungeon Status
+      <span id="battleState">Idle</span>
+    </h2>
+    <div id="messageBox" class="status">
+      Your tiny doom crew is ready. Start the fight and let the bonking begin.
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Your Party <span id="partyPower"></span></h2>
+      <div id="partyList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Enemy Wave <span id="enemyPower"></span></h2>
+      <div id="enemyList"></div>
+    </div>
+  </section>
+
+  <section class="card" id="upgradeCard">
+    <h2>Upgrade Choices</h2>
+    <div id="upgradeBanner" class="victory-banner hidden"></div>
+    <div id="choices" class="choices"></div>
+  </section>
+
+  <section class="card">
+    <h2>Upgrade Ledger</h2>
+    <div class="log" id="upgradeLedger"></div>
+  </section>
+
+  <section class="card">
+    <h2>Upgrade Ledger <span id="upgradeCount">0 picked</span></h2>
+    <div id="upgradeList" class="upgrade-list"></div>
+  </section>
+
+  <section class="card">
+    <h2>Controls</h2>
+    <div class="actions">
+      <button class="primary full" id="startBtn" onclick="startBattle()">Start Fight</button>
+      <button onclick="saveGame()">Save</button>
+      <button onclick="loadGame(true)">Load</button>
+      <button class="danger full" onclick="hardReset()">Reset Run</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Combat Log</h2>
+    <div class="log" id="log"></div>
+  </section>
+
+  <div class="footer-note">
+    Single-file prototype v0.2. Gold finally has a job. Speed stopped lying.
+  </div>
+</main>
+
+<script>
+
+window.addEventListener("error", function(event) {
+  const box = document.getElementById("messageBox");
+  if (box) box.textContent = "JavaScript error: " + event.message;
+});
+
+const SAVE_KEY = "pocket_dungeon_tiny_doom_crew_v036";
+
+const HERO_LIBRARY = {
+  knight: {
+    id: "knight",
+    name: "Knight",
+    emoji: "🛡️",
+    role: "Tanky bruiser",
+    maxHp: 115,
+    atk: 13,
+    def: 5,
+    spd: 1.00,
+    hpBias: 1.45,
+    atkBias: .85,
+    defBias: 1.25,
+    spdBias: .80,
+    skillText: "Every 4th attack heals self.",
+    make() {
+      return makeUnit(this, "hero");
+    }
+  },
+  rogue: {
+    id: "rogue",
+    name: "Rogue",
+    emoji: "🗡️",
+    role: "Fast crit goblin",
+    maxHp: 68,
+    atk: 9,
+    def: 1,
+    spd: 1.85,
+    crit: .25,
+    hpBias: .80,
+    atkBias: 1.45,
+    defBias: .75,
+    spdBias: 1.25,
+    skillText: "25% chance to crit for double damage.",
+    make() {
+      return makeUnit(this, "hero");
+    }
+  },
+  cleric: {
+    id: "cleric",
+    name: "Cleric",
+    emoji: "✨",
+    role: "Healer",
+    maxHp: 82,
+    atk: 6,
+    def: 2,
+    spd: 1.05,
+    healer: true,
+    hpBias: 1.05,
+    atkBias: 1.00,
+    defBias: 1.00,
+    spdBias: 1.00,
+    skillText: "Every 3rd action heals the weakest ally.",
+    make() {
+      return makeUnit(this, "hero");
+    }
+  }
+};
+
+const ENEMY_LIBRARY = {
+  rat: {
+    id: "rat",
+    name: "Dungeon Rat",
+    emoji: "🐀",
+    maxHp: 26,
+    atk: 5,
+    def: 0,
+    spd: 1.25
+  },
+  slime: {
+    id: "slime",
+    name: "Grumpy Slime",
+    emoji: "🟢",
+    maxHp: 42,
+    atk: 4,
+    def: 2,
+    spd: .80
+  },
+  goblin: {
+    id: "goblin",
+    name: "Pocket Goblin",
+    emoji: "👺",
+    maxHp: 36,
+    atk: 8,
+    def: 1,
+    spd: 1.05
+  },
+  bat: {
+    id: "bat",
+    name: "Rude Bat",
+    emoji: "🦇",
+    maxHp: 28,
+    atk: 6,
+    def: 0,
+    spd: 1.65
+  },
+  boss5: {
+    id: "boss5",
+    name: "Big Gob",
+    emoji: "💢",
+    maxHp: 175,
+    atk: 14,
+    def: 3,
+    spd: .85,
+    boss: true,
+    skillText: "Every 3rd attack hits harder."
+  },
+  boss10: {
+    id: "boss10",
+    name: "The Snackromancer",
+    emoji: "💀",
+    maxHp: 255,
+    atk: 16,
+    def: 4,
+    spd: .86,
+    boss: true,
+    skillText: "A suspiciously dramatic floor 10 boss."
+  }
+};
+
+const BASE_PERSONAL = {
+  maxHp: 18,
+  atk: 4,
+  def: 2,
+  spd: .12
+};
+
+const BASE_TEAM = {
+  maxHp: 8,
+  atk: 2,
+  def: 1,
+  spd: .05
+};
+
+
+function upgradeScale() {
+  // Gentle reward scaling so later floors don't become a brick wall.
+  // Floor 1-4: ×1.00, Floor 5-9: around ×1.08-×1.16, Floor 10+: capped at ×1.35.
+  return Math.min(1.35, 1 + Math.max(0, game.floor - 1) * 0.02);
+}
+
+function scaledAmount(amount, stat) {
+  const scaled = amount * upgradeScale();
+  return stat === "spd" ? round2(scaled) : Math.max(1, Math.round(scaled));
+}
+
+const GOLD_TRAINING_BASE_COST = 100;
+const GOLD_TRAINING_LINEAR = 20;
+const GOLD_TRAINING_MULT = 1.12;
+
+let game = newGame();
+let lastTime = performance.now();
+
+function newGame() {
+  const knight = HERO_LIBRARY.knight.make();
+  return {
+    floor: 1,
+    gold: 0,
+    bestFloor: 1,
+    party: [knight],
+    enemies: [],
+    inBattle: false,
+    waitingForUpgrade: false,
+    wonPrototype: false,
+    global: {
+      goldMult: 1,
+      startShield: 0,
+      teamBonus: {
+        maxHp: 0,
+        atk: 0,
+        def: 0,
+        spd: 0
+      }
+    },
+    upgradeLedger: [],
+    currentChoices: [],
+    currentGoldChoice: null,
+    goldChoicePurchased: false,
+    goldPurchaseCount: 0,
+    log: []
+  };
+}
+
+function makeUnit(template, team) {
+  return {
+    id: template.id,
+    name: template.name,
+    emoji: template.emoji,
+    role: template.role || "",
+    team,
+    baseMaxHp: template.maxHp,
+    baseAtk: template.atk,
+    baseDef: template.def,
+    baseSpd: template.spd,
+    personalBonus: {
+      maxHp: 0,
+      atk: 0,
+      def: 0,
+      spd: 0
+    },
+    maxHp: template.maxHp,
+    hp: template.maxHp,
+    atk: template.atk,
+    def: template.def,
+    spd: template.spd,
+    crit: template.crit || 0,
+    healer: !!template.healer,
+    boss: !!template.boss,
+    skillText: template.skillText || "",
+    cooldown: attackDelay(template.spd),
+    attacks: 0,
+    shield: 0
+  };
+}
+
+function applyAllBonusesToHero(hero, keepHpRatio = true) {
+  const oldMax = hero.maxHp || hero.baseMaxHp || 1;
+  const oldHp = hero.hp ?? oldMax;
+  const ratio = oldMax > 0 ? oldHp / oldMax : 1;
+  const team = game.global.teamBonus || { maxHp: 0, atk: 0, def: 0, spd: 0 };
+  const personal = hero.personalBonus || { maxHp: 0, atk: 0, def: 0, spd: 0 };
+
+  hero.maxHp = Math.max(1, Math.round((hero.baseMaxHp || hero.maxHp) + personal.maxHp + team.maxHp));
+  hero.atk = Math.max(1, Math.round((hero.baseAtk || hero.atk) + personal.atk + team.atk));
+  hero.def = Math.max(0, Math.round((hero.baseDef || hero.def) + personal.def + team.def));
+  hero.spd = Math.max(.2, round2((hero.baseSpd || hero.spd) + personal.spd + team.spd));
+
+  if (keepHpRatio) {
+    hero.hp = Math.max(1, Math.min(hero.maxHp, Math.round(hero.maxHp * ratio)));
+  } else {
+    hero.hp = hero.maxHp;
+  }
+
+  hero.cooldown = Math.min(hero.cooldown || attackDelay(hero.spd), attackDelay(hero.spd));
+}
+
+function applyTeamBonusesToAll(keepHpRatio = true) {
+  game.party.forEach(hero => applyAllBonusesToHero(hero, keepHpRatio));
+}
+
+function recruitHero(id) {
+  const hero = HERO_LIBRARY[id].make();
+  game.party.push(hero);
+  applyAllBonusesToHero(hero, false);
+  return hero;
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+function cloneEnemy(id, floor) {
+  const t = ENEMY_LIBRARY[id];
+
+  // Enemy scaling v0.3.6:
+  // Halfway between the harsh old curve and the softer v0.3.5 curve,
+  // plus tiny speed scaling so late-game enemies still get turns.
+  const hpScale = 1 + (floor - 1) * (t.boss ? 0.122 : 0.158);
+  const atkScale = 1 + (floor - 1) * (t.boss ? 0.092 : 0.118);
+  const defBonus = Math.floor(floor / (t.boss ? 5 : 4));
+
+  // Teeny speed growth, capped so bats do not become illegal aircraft.
+  const speedScale = Math.min(1.28, 1 + Math.max(0, floor - 1) * (t.boss ? 0.006 : 0.008));
+  const spd = round2(t.spd * speedScale);
+
+  const maxHp = Math.round(t.maxHp * hpScale);
+
+  return {
+    id: t.id,
+    name: t.name,
+    emoji: t.emoji,
+    team: "enemy",
+    maxHp,
+    hp: maxHp,
+    atk: Math.round(t.atk * atkScale),
+    def: Math.round(t.def + defBonus),
+    spd,
+    boss: !!t.boss,
+    skillText: t.skillText || "",
+    cooldown: attackDelay(spd),
+    attacks: 0,
+    shield: 0
+  };
+}
+
+function attackDelay(speed) {
+  return 2.6 / Math.max(.25, speed);
+}
+
+function startBattle() {
+  if (game.inBattle || game.waitingForUpgrade) return;
+
+  applyTeamBonusesToAll(false);
+  game.enemies = makeWave(game.floor);
+
+  game.party.forEach(h => {
+    h.hp = h.maxHp;
+    h.cooldown = attackDelay(h.spd);
+    h.attacks = 0;
+    h.shield = game.global.startShield;
+  });
+
+  game.enemies.forEach(e => {
+    e.cooldown = attackDelay(e.spd);
+    e.attacks = 0;
+    e.shield = 0;
+  });
+
+  game.inBattle = true;
+  game.waitingForUpgrade = false;
+  lastTime = performance.now();
+  addLog(`Floor ${game.floor} begins. Tiny boots enter suspicious darkness.`, "important");
+  render();
+}
+
+function makeWave(floor) {
+  if (floor === 5) return [cloneEnemy("boss5", floor)];
+  if (floor === 10) return [cloneEnemy("boss10", floor)];
+  if (floor > 10 && floor % 5 === 0) return [makeScaledBoss(floor)];
+
+  const pool = ["rat", "slime", "goblin", "bat"];
+  const count = Math.min(1 + Math.floor((floor - 1) / 3), 3);
+  const wave = [];
+
+  for (let i = 0; i < count; i++) {
+    const index = (floor + i * 2 + Math.floor(Math.random() * 2)) % pool.length;
+    wave.push(cloneEnemy(pool[index], floor));
+  }
+
+  return wave;
+}
+
+function makeScaledBoss(floor) {
+  const era = Math.floor(floor / 5);
+
+  // Stronger than v0.3.5, softer than the original wall-of-doom.
+  const maxHp = Math.round(225 * (1 + era * 0.48) * (1 + floor * 0.03));
+  const spd = round2(.78 + Math.min(.32, era * .022 + floor * .002));
+
+  return {
+    id: "scaledBoss",
+    name: `Boss Blob ${era}`,
+    emoji: "🧱",
+    team: "enemy",
+    maxHp,
+    hp: maxHp,
+    atk: Math.round(14 * (1 + era * 0.255) * (1 + floor * 0.022)),
+    def: Math.round(3 + era * 1.25),
+    spd,
+    boss: true,
+    skillText: "A scaling boss. Less impossible, still rude.",
+    cooldown: attackDelay(spd),
+    attacks: 0,
+    shield: 0
+  };
+}
+
+function gameLoop(now) {
+  const dt = Math.min(.12, (now - lastTime) / 1000);
+  lastTime = now;
+
+  if (game.inBattle) {
+    updateBattle(dt);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+function updateBattle(dt) {
+  const heroes = living(game.party);
+  const enemies = living(game.enemies);
+
+  if (heroes.length === 0) {
+    loseBattle();
+    return;
+  }
+
+  if (enemies.length === 0) {
+    winBattle();
+    return;
+  }
+
+  for (const hero of heroes) {
+    hero.cooldown -= dt;
+    if (hero.cooldown <= 0) {
+      hero.cooldown += attackDelay(hero.spd);
+      heroAction(hero);
+    }
+  }
+
+  for (const enemy of enemies) {
+    enemy.cooldown -= dt;
+    if (enemy.cooldown <= 0) {
+      enemy.cooldown += attackDelay(enemy.spd);
+      enemyAction(enemy);
+    }
+  }
+
+  renderUnitsOnly();
+}
+
+function heroAction(hero) {
+  hero.attacks++;
+
+  if (hero.healer && hero.attacks % 3 === 0) {
+    const target = weakest(game.party);
+    const heal = Math.round(12 + hero.atk * .75);
+    target.hp = Math.min(target.maxHp, target.hp + heal);
+    addLog(`${hero.emoji} ${hero.name} patches ${target.name} for ${heal} HP. Divine duct tape.`, "good");
+    return;
+  }
+
+  const target = chooseAggroTarget(game.enemies);
+  if (!target) return;
+
+  let damage = Math.max(1, hero.atk - target.def);
+  let crit = false;
+
+  if (hero.crit && Math.random() < hero.crit) {
+    damage *= 2;
+    crit = true;
+  }
+
+  applyDamage(target, damage);
+  addLog(`${hero.emoji} ${hero.name} attacks ${target.emoji} ${target.name} for ${damage}${crit ? " CRIT" : ""}.`, crit ? "good" : "");
+}
+
+function enemyAction(enemy) {
+  enemy.attacks++;
+  const target = chooseAggroTarget(game.party);
+  if (!target) return;
+
+  let damage = Math.max(1, enemy.atk - target.def);
+
+  if (enemy.boss && enemy.id === "boss5" && enemy.attacks % 3 === 0) {
+    damage = Math.round(damage * 1.5);
+    addLog(`${enemy.emoji} ${enemy.name} winds up a dramatic gob-smash!`, "bad");
+  }
+
+  applyDamage(target, damage);
+  addLog(`${enemy.emoji} ${enemy.name} targets ${target.emoji} ${target.name} for ${damage}.`, "bad");
+}
+
+function chooseAggroTarget(team) {
+  const alive = living(team);
+  if (alive.length === 0) return null;
+
+  const weights = alive.map(u => Math.max(1, u.def));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = Math.random() * total;
+
+  for (let i = 0; i < alive.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return alive[i];
+  }
+
+  return alive[alive.length - 1];
+}
+
+function aggroChance(unit, team) {
+  const alive = living(team);
+  const total = alive.reduce((sum, u) => sum + Math.max(1, u.def), 0);
+  if (total <= 0) return 0;
+  return Math.round((Math.max(1, unit.def) / total) * 100);
+}
+
+function applyDamage(unit, amount) {
+  let remaining = amount;
+
+  if (unit.shield > 0) {
+    const blocked = Math.min(unit.shield, remaining);
+    unit.shield -= blocked;
+    remaining -= blocked;
+  }
+
+  unit.hp = Math.max(0, unit.hp - remaining);
+}
+
+function living(list) {
+  return list.filter(u => u.hp > 0);
+}
+
+function weakest(list) {
+  return living(list).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0] || list[0];
+}
+
+function winBattle() {
+  game.inBattle = false;
+
+  const gold = Math.round((18 + game.floor * 7) * game.global.goldMult);
+  game.gold += gold;
+  game.bestFloor = Math.max(game.bestFloor, game.floor + 1);
+
+  addLog(`Victory! The crew steals ${gold} gold and one questionable sandwich.`, "important");
+
+  // v0.3.5: Floor 10 is no longer the end. Keep pushing until the dungeon says sorry.
+  if (game.floor === 10) {
+    addLog("Prototype milestone cleared: Floor 10 beaten. The dungeon grows a second chin.", "weird");
+  }
+
+  game.floor++;
+  game.waitingForUpgrade = true;
+  game.goldChoicePurchased = false;
+  rollUpgradeChoices();
+  saveGame(true);
+  render();
+}
+
+function loseBattle() {
+  game.inBattle = false;
+  game.waitingForUpgrade = false;
+  addLog(`Defeat. The dungeon pats your pockets and takes emotional damage as payment.`, "bad");
+  document.getElementById("messageBox").textContent = "Your party fell. Reset the run and try a different upgrade path.";
+  saveGame(true);
+  render();
+}
+
+function showWinPrototype() {
+  game.waitingForUpgrade = false;
+  document.getElementById("messageBox").innerHTML = "You beat Floor 10. The Snackromancer has filed a complaint with HR.";
+}
+
+function rollUpgradeChoices() {
+  const personal = buildPersonalUpgradePool();
+  const global = buildGlobalUpgradePool();
+  const recruits = buildRecruitPool();
+
+  shuffle(personal);
+  shuffle(global);
+  shuffle(recruits);
+
+  const choices = [];
+
+  // Recruitment should not be pure lottery misery.
+  // If a recruit is available, guarantee one recruit option.
+  if (recruits.length > 0) {
+    choices.push(recruits[0]);
+  }
+
+  // Then try to show both upgrade families:
+  // personal = stronger single-character boost
+  // team = weaker retroactive party boost
+  if (personal.length > 0) choices.push(personal[0]);
+  if (global.length > 0) choices.push(global[0]);
+
+  // Fill remaining slots with a mixed pool.
+  const combined = [
+    ...personal.slice(1),
+    ...global.slice(1),
+    ...recruits.slice(1)
+  ];
+  shuffle(combined);
+
+  while (choices.length < 3 && combined.length) choices.push(combined.pop());
+
+  // In case there are more than 3 somehow, shuffle lightly so recruit is guaranteed
+  // but the other two choices still vary.
+  game.currentChoices = choices.slice(0, 3);
+  game.currentGoldChoice = buildGoldTrainingChoice();
+}
+
+function classAmount(hero, stat, paid = false) {
+  const template = HERO_LIBRARY[hero.id] || HERO_LIBRARY.knight;
+  const base = BASE_PERSONAL[stat];
+  const biasKey = stat === "maxHp" ? "hpBias" : `${stat}Bias`;
+  const bias = template[biasKey] || 1;
+  const strength = paid ? 2 : 1;
+  const amount = base * bias * strength;
+  return scaledAmount(amount, stat);
+}
+
+function teamAmount(stat, paid = false) {
+  const amount = BASE_TEAM[stat] * (paid ? 2 : 1);
+  return scaledAmount(amount, stat);
+}
+
+function buildPersonalUpgradePool() {
+  const pool = [];
+  const stats = ["maxHp", "atk", "def", "spd"];
+
+  for (const hero of game.party) {
+    for (const stat of stats) {
+      const amount = classAmount(hero, stat, false);
+      pool.push({
+        kind: "personal",
+        title: `${hero.name}: +${displayAmount(stat, amount)} ${statLabel(stat)}`,
+        desc: personalDesc(hero, stat, amount),
+        apply: () => {
+          hero.personalBonus[stat] += amount;
+          applyAllBonusesToHero(hero, true);
+          ledger(`${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
+        }
+      });
+    }
+  }
+
+  return pool;
+}
+
+function buildGlobalUpgradePool() {
+  const pool = [];
+  const stats = ["maxHp", "atk", "def", "spd"];
+
+  for (const stat of stats) {
+    const amount = teamAmount(stat, false);
+    pool.push({
+      kind: "team",
+      title: `Team: +${displayAmount(stat, amount)} ${statLabel(stat)}`,
+      desc: `Weaker than personal training, but retroactive. New recruits also get it.`,
+      apply: () => {
+        game.global.teamBonus[stat] += amount;
+        applyTeamBonusesToAll(true);
+        ledger(`Team gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
+      }
+    });
+  }
+
+  pool.push({
+    kind: "team",
+    title: "Team: +12 Start Shield",
+    desc: "Every hero starts combat with extra shield. New recruits benefit too.",
+    apply: () => {
+      game.global.startShield += 12;
+      ledger("Team gained +12 starting shield.");
+    }
+  });
+
+  pool.push({
+    kind: "team",
+    title: "Treasure Nose: +25% Gold",
+    desc: "More gold means more paid training. The capitalism rat approves.",
+    apply: () => {
+      game.global.goldMult *= 1.25;
+      ledger("Gold drops increased by 25%.");
+    }
+  });
+
+  return pool;
+}
+
+function buildRecruitPool() {
+  const pool = [];
+
+  if (!hasHero("rogue")) {
+    pool.push({
+      kind: "recruit",
+      title: "Recruit Rogue",
+      desc: "Fast, fragile, and legally considered a cutlery incident.",
+      apply: () => {
+        recruitHero("rogue");
+        addLog("🗡️ Rogue joins the crew. Hide the shiny things.", "weird");
+        ledger("Recruited Rogue.");
+      }
+    });
+  }
+
+  if (!hasHero("cleric") && game.floor >= 4) {
+    pool.push({
+      kind: "recruit",
+      title: "Recruit Cleric",
+      desc: "Heals allies and judges everyone quietly.",
+      apply: () => {
+        recruitHero("cleric");
+        addLog("✨ Cleric joins the crew. The vibe becomes 14% safer.", "weird");
+        ledger("Recruited Cleric.");
+      }
+    });
+  }
+
+  return pool;
+}
+
+
+function goldTrainingCost() {
+  const n = game.goldPurchaseCount || 0;
+  return Math.round((GOLD_TRAINING_BASE_COST + GOLD_TRAINING_LINEAR * n) * Math.pow(GOLD_TRAINING_MULT, n));
+}
+
+function buildGoldTrainingChoice() {
+  const stats = ["maxHp", "atk", "def", "spd"];
+  const candidates = [];
+  const cost = goldTrainingCost();
+
+  // Paid personal upgrades: double-strength, focused on one hero.
+  for (const hero of game.party) {
+    for (const stat of stats) {
+      const amount = classAmount(hero, stat, true);
+      candidates.push({
+        kind: "gold-personal",
+        title: `Gold Training: ${hero.name} +${displayAmount(stat, amount)} ${statLabel(stat)}`,
+        desc: `Costs ${cost} gold. Double-strength personal stat training.`,
+        cost,
+        apply: () => {
+          hero.personalBonus[stat] += amount;
+          applyAllBonusesToHero(hero, true);
+          game.gold -= cost;
+          game.goldPurchaseCount = (game.goldPurchaseCount || 0) + 1;
+          game.goldChoicePurchased = true;
+          ledger(`Gold personal training: ${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${cost} gold.`);
+        }
+      });
+    }
+  }
+
+  // Paid team upgrades: double-strength team bonuses, retroactive and inherited by future recruits.
+  for (const stat of stats) {
+    const amount = teamAmount(stat, true);
+    candidates.push({
+      kind: "gold-team",
+      title: `Gold Team Drill: +${displayAmount(stat, amount)} ${statLabel(stat)} Team`,
+      desc: `Costs ${cost} gold. Double-strength team upgrade. Retroactive and inherited by new recruits.`,
+      cost,
+      apply: () => {
+        game.global.teamBonus[stat] += amount;
+        applyTeamBonusesToAll(true);
+        game.gold -= cost;
+        game.goldPurchaseCount = (game.goldPurchaseCount || 0) + 1;
+        game.goldChoicePurchased = true;
+        ledger(`Gold team drill: team gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${cost} gold.`);
+      }
+    });
+  }
+
+  candidates.push({
+    kind: "gold-team",
+    title: "Gold Team Drill: +24 Start Shield",
+    desc: `Costs ${cost} gold. Double-strength starting shield for every hero.`,
+    cost,
+    apply: () => {
+      game.global.startShield += 24;
+      game.gold -= cost;
+      game.goldPurchaseCount = (game.goldPurchaseCount || 0) + 1;
+      game.goldChoicePurchased = true;
+      ledger(`Gold team drill: team gained +24 starting shield for ${cost} gold.`);
+    }
+  });
+
+  shuffle(candidates);
+  return candidates[0];
+}
+
+function personalDesc(hero, stat, amount) {
+  const flavor = {
+    knight: {
+      maxHp: "Knight specialty. Big shield, bigger refusal to die.",
+      atk: "A modest bonk boost for the honest class.",
+      def: "Knight likes this. Enemies develop wrist pain.",
+      spd: "Not his specialty, but even armor can jog angrily."
+    },
+    rogue: {
+      maxHp: "Rogue gets a little less evaporatable.",
+      atk: "Rogue specialty. The knife starts filing taxes as a weapon.",
+      def: "A tiny bit of armor. Rogue complains.",
+      spd: "Rogue likes this. More ankle crimes per second."
+    },
+    cleric: {
+      maxHp: "Solid middle-ground survivability.",
+      atk: "A balanced holy bonk improvement.",
+      def: "Balanced protection for the party babysitter.",
+      spd: "Balanced tempo. Faster heals, fewer panic noises."
+    }
+  };
+
+  return flavor[hero.id]?.[stat] || `Class-specific training for +${displayAmount(stat, amount)} ${statLabel(stat)}.`;
+}
+
+function chooseUpgrade(index) {
+  if (!game.waitingForUpgrade || !game.currentChoices) return;
+  const choice = game.currentChoices[index];
+  if (!choice) return;
+
+  choice.apply();
+  addLog(`Upgrade chosen: ${choice.title}.`, "important");
+
+  game.waitingForUpgrade = false;
+  game.currentChoices = [];
+  game.currentGoldChoice = null;
+  document.getElementById("messageBox").textContent = "Upgrade locked in. Start the next fight when ready.";
+  saveGame(true);
+  render();
+}
+
+function buyGoldTraining() {
+  if (!game.waitingForUpgrade || !game.currentGoldChoice || game.goldChoicePurchased) return;
+
+  const choice = game.currentGoldChoice;
+  const cost = choice.cost || goldTrainingCost();
+
+  if (game.gold < cost) {
+    addLog(`Need ${cost} gold for paid training. The trainer refuses payment in vibes.`, "bad");
+    return;
+  }
+
+  choice.apply();
+  addLog(`Paid upgrade bought: ${choice.title}. Next paid training will cost ${goldTrainingCost()} gold.`, "important");
+  saveGame(true);
+  render();
+}
+
+function hasHero(id) {
+  return game.party.some(h => h.id === id);
+}
+
+function displayAmount(stat, amount) {
+  return stat === "spd" ? amount.toFixed(2) : amount;
+}
+
+function statLabel(stat) {
+  return {
+    maxHp: "HP",
+    atk: "ATK",
+    def: "DEF",
+    spd: "SPD"
+  }[stat] || stat;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function ledger(text) {
+  game.upgradeLedger = game.upgradeLedger || [];
+  game.upgradeLedger.push({
+    floor: game.floor,
+    text
+  });
+  if (game.upgradeLedger.length > 120) game.upgradeLedger.shift();
+}
+
+function addLog(text, type = "") {
+  if (!Array.isArray(game.log)) game.log = [];
+  game.log.push({ text, type });
+  if (game.log.length > 80) game.log.shift();
+  if (typeof renderLog === "function") renderLog();
+}
+
+function render() {
+  if (!game.party || !Array.isArray(game.party) || game.party.length === 0) {
+    game.party = [HERO_LIBRARY.knight.make()];
+    applyTeamBonusesToAll(false);
+  }
+  if (!game.enemies || !Array.isArray(game.enemies)) game.enemies = [];
+  if (!game.global) game.global = newGame().global;
+  if (!game.global.teamBonus) game.global.teamBonus = { maxHp: 0, atk: 0, def: 0, spd: 0 };
+
+  document.getElementById("floorText").textContent = game.floor;
+  document.getElementById("goldText").textContent = Math.floor(game.gold);
+  document.getElementById("bestText").textContent = game.bestFloor;
+  document.getElementById("battleState").textContent =
+    game.inBattle ? "Fighting" : game.waitingForUpgrade ? "Upgrade" : "Idle";
+
+  document.getElementById("startBtn").disabled =
+    game.inBattle || game.waitingForUpgrade || game.wonPrototype || living(game.party).length === 0;
+
+  document.getElementById("partyPower").textContent = `${Math.round(teamPower(game.party))} power`;
+  document.getElementById("enemyPower").textContent = game.enemies.length ? `${Math.round(teamPower(game.enemies))} power` : "";
+
+  renderUnits();
+  renderChoices();
+  renderLedger();
+  renderLog();
+
+  if (!game.inBattle && !game.waitingForUpgrade && !game.wonPrototype && living(game.party).length > 0) {
+    document.getElementById("messageBox").textContent = "Ready. Start the next fight and let fate wear a tiny helmet.";
+  }
+}
+
+function renderUnitsOnly() {
+  document.getElementById("floorText").textContent = game.floor;
+  document.getElementById("goldText").textContent = Math.floor(game.gold);
+  renderUnits();
+}
+
+function renderUnits() {
+  document.getElementById("partyList").innerHTML = game.party.map(u => unitHtml(u, game.party)).join("");
+  document.getElementById("enemyList").innerHTML =
+    game.enemies.length ? game.enemies.map(u => unitHtml(u, game.enemies)).join("") : `<div class="status">No enemies yet. Suspiciously peaceful.</div>`;
+}
+
+function unitHtml(u, team) {
+  const pct = Math.max(0, Math.min(100, (u.hp / u.maxHp) * 100));
+  const hpClass = u.team === "hero" ? "hp-player" : "hp-enemy";
+  const crit = u.crit ? ` · CRIT ${Math.round(u.crit * 100)}%` : "";
+  const shield = u.shield ? ` · SHIELD ${Math.round(u.shield)}` : "";
+  const aggro = team && living(team).length > 1 ? ` · AGGRO ${aggroChance(u, team)}%` : "";
+  const skill = u.skillText ? `<div class="unit-meta">${u.skillText}</div>` : "";
+
+  return `
+    <div class="unit">
+      <div class="unit-top">
+        <div>
+          <div class="unit-name"><span class="emoji">${u.emoji}</span>${u.name}</div>
+          ${skill}
+        </div>
+        <div class="unit-meta">${Math.ceil(u.hp)}/${u.maxHp} HP</div>
+      </div>
+      <div class="bar-wrap"><div class="bar ${hpClass}" style="width:${pct}%"></div></div>
+      <div class="unit-stats">
+        <span>ATK ${u.atk}</span>
+        <span>DEF ${u.def}</span>
+        <span>SPD ${u.spd.toFixed(2)}</span>
+        <span>CD ${Math.max(0, u.cooldown).toFixed(1)}s${crit}${shield}${aggro}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderChoices() {
+  const card = document.getElementById("upgradeCard");
+  const banner = document.getElementById("upgradeBanner");
+  const choices = document.getElementById("choices");
+
+  if (!game.waitingForUpgrade) {
+    card.classList.add("hidden");
+    return;
+  }
+
+  card.classList.remove("hidden");
+  banner.classList.remove("hidden");
+  banner.textContent = `Floor cleared. Choose one free upgrade before Floor ${game.floor}. Gold training is optional.`;
+
+  const freeChoices = (game.currentChoices || []).map((c, i) => `
+    <button class="choice" onclick="chooseUpgrade(${i})">
+      <strong>${c.kind === "team" ? "🌐 " : c.kind === "personal" ? "🎯 " : "➕ "}${c.title}</strong>
+      <small>${c.desc}</small>
+    </button>
+  `).join("");
+
+  const gold = game.currentGoldChoice;
+  const goldHtml = gold ? `
+    <button class="choice" onclick="buyGoldTraining()" ${game.gold < (gold.cost || goldTrainingCost()) || game.goldChoicePurchased ? "disabled" : ""}>
+      <strong>💰 ${game.goldChoicePurchased ? "Gold Training Purchased" : gold.title}</strong>
+      <small>${game.goldChoicePurchased ? "Already bought for this floor." : `${gold.desc} You have ${Math.floor(game.gold)} gold. Next cost after purchase scales upward.`}</small>
+    </button>
+  ` : "";
+
+  choices.innerHTML = freeChoices + goldHtml;
+}
+
+
+function renderLog() {
+  const el = document.getElementById("log");
+  if (!el) return;
+
+  const entries = Array.isArray(game.log) ? game.log : [];
+  el.innerHTML = entries
+    .map(entry => `<p class="${entry.type || ""}">${escapeHtml(entry.text || "")}</p>`)
+    .join("");
+
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderLedger() {
+  const el = document.getElementById("upgradeLedger");
+  if (!el) return;
+
+  const team = Object.assign({ maxHp: 0, atk: 0, def: 0, spd: 0 }, game.global.teamBonus || {});
+  const startShield = Number.isFinite(game.global.startShield) ? game.global.startShield : 0;
+  const goldMult = Number.isFinite(game.global.goldMult) ? game.global.goldMult : 1;
+  const summary = `
+    <p class="important">Team bonuses: +${team.maxHp} HP · +${team.atk} ATK · +${team.def} DEF · +${Number(team.spd || 0).toFixed(2)} SPD · +${startShield} Shield · ×${goldMult.toFixed(2)} Gold</p>
+  `;
+
+  const ledger = game.upgradeLedger || [];
+  const rows = ledger.slice(-16).reverse().map(x => `<p>F${x.floor}: ${escapeHtml(x.text)}</p>`).join("");
+
+  el.innerHTML = summary + (rows || `<p>No upgrades yet. The ledger is clean. Suspiciously clean.</p>`);
+}
+
+function teamPower(team) {
+  return team.reduce((sum, u) => sum + u.maxHp * .12 + u.atk * 3 + u.def * 2.5 + u.spd * 10, 0);
+}
+
+function saveGame(silent = false) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(game));
+    if (!silent) addLog("Game saved. The dungeon paperwork is almost legal.", "good");
+  } catch (err) {
+    addLog("Save failed. The goblin ate the clipboard.", "bad");
+  }
+}
+
+function loadGame(showMessage = false) {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) {
+      if (showMessage) addLog("No save found. The vault is empty and judging us.", "bad");
+      return;
+    }
+
+    const loaded = JSON.parse(raw);
+    game = repairSave(loaded);
+    if (showMessage) addLog("Save loaded. Tiny doom restored.", "good");
+    render();
+  } catch (err) {
+    addLog("Load failed. Save data got cursed.", "bad");
+  }
+}
+
+function repairSave(data) {
+  const fresh = newGame();
+  const merged = Object.assign(fresh, data);
+
+  merged.global = Object.assign(fresh.global, data.global || {});
+  merged.global.teamBonus = Object.assign(fresh.global.teamBonus, (data.global && data.global.teamBonus) || {});
+  merged.party = Array.isArray(data.party) ? data.party : fresh.party;
+  merged.enemies = Array.isArray(data.enemies) ? data.enemies : [];
+  merged.log = Array.isArray(data.log) ? data.log.slice(-80) : [];
+  merged.upgradeLedger = Array.isArray(data.upgradeLedger) ? data.upgradeLedger : [];
+  merged.currentChoices = [];
+  merged.currentGoldChoice = null;
+  merged.goldPurchaseCount = Number.isFinite(merged.goldPurchaseCount) ? merged.goldPurchaseCount : 0;
+  merged.wonPrototype = !!merged.wonPrototype;
+  merged.waitingForUpgrade = !!merged.waitingForUpgrade && !merged.wonPrototype;
+  merged.inBattle = !!merged.inBattle && !merged.waitingForUpgrade && !merged.wonPrototype;
+
+  merged.party.forEach(u => {
+    const template = HERO_LIBRARY[u.id] || HERO_LIBRARY.knight;
+    if (typeof u.baseMaxHp !== "number") u.baseMaxHp = template.maxHp;
+    if (typeof u.baseAtk !== "number") u.baseAtk = template.atk;
+    if (typeof u.baseDef !== "number") u.baseDef = template.def;
+    if (typeof u.baseSpd !== "number") u.baseSpd = template.spd;
+    u.personalBonus = Object.assign({ maxHp: 0, atk: 0, def: 0, spd: 0 }, u.personalBonus || {});
+    if (typeof u.shield !== "number") u.shield = 0;
+    if (typeof u.cooldown !== "number") u.cooldown = attackDelay(u.spd || 1);
+    if (typeof u.attacks !== "number") u.attacks = 0;
+    if (!u.team) u.team = "hero";
+    applyAllBonusesToHero(u, true);
+  });
+
+  merged.enemies.forEach(u => {
+    if (typeof u.shield !== "number") u.shield = 0;
+    if (typeof u.cooldown !== "number") u.cooldown = attackDelay(u.spd || 1);
+    if (typeof u.attacks !== "number") u.attacks = 0;
+    if (!u.team) u.team = "enemy";
+  });
+
+  return merged;
+}
+
+function hardReset() {
+  if (!confirm("Reset the run? Your tiny doom crew will forget where it parked.")) return;
+  localStorage.removeItem(SAVE_KEY);
+  game = newGame();
+  addLog("New run started. Knight enters with confidence and questionable insurance.", "important");
+  render();
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+loadGame(false);
+if (game.log.length === 0) {
+  addLog("Knight arrives at the dungeon door. The door feels mildly threatened.", "important");
+}
+render();
+requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>
