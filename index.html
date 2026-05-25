@@ -755,7 +755,7 @@ function attackDelay(speed) {
 
 function enemyWinScale(boss = false) {
   const wins = Math.max(0, (game.floor || 1) - 1);
-  return 1 + wins * (boss ? .02 : .025);
+  return 1 + wins * (boss ? .01 : .015);
 }
 
 function startBattle() {
