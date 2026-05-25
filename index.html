@@ -1051,8 +1051,8 @@ function rollRarity(allowLuck = false) {
     common: allowLuck ? 0 : 70,
     rare: allowLuck ? 72 : 24 + luck * 1.4,
     gilded: 6 + luck * 1.1,
-    mystical: luck >= LUCK_MYSTICAL_UNLOCK ? 2 + (luck - LUCK_MYSTICAL_UNLOCK) * .65 : 0,
-    legend: luck >= LUCK_LEGEND_UNLOCK ? .7 + (luck - LUCK_LEGEND_UNLOCK) * .28 : 0
+    mystical: luck >= LUCK_MYSTICAL_UNLOCK ? 14 + (luck - LUCK_MYSTICAL_UNLOCK) * 2.4 : 0,
+    legend: luck >= LUCK_LEGEND_UNLOCK ? 6 + (luck - LUCK_LEGEND_UNLOCK) * 1.1 : 0
   };
   const weighted = available
     .map(r => ({ rarity: r.id, weight: Math.max(0, baseWeights[r.id] || 0) }))
