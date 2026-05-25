@@ -254,6 +254,36 @@
     line-height: 1.3;
   }
 
+  .choice.common { border-color: rgba(169, 159, 194, .5); }
+  .choice.rare { border-color: rgba(107, 188, 255, .72); }
+  .choice.gilded {
+    border-color: rgba(255, 209, 102, .85);
+    background: linear-gradient(180deg, rgba(78, 56, 20, .62), rgba(21, 19, 32, .96));
+  }
+  .choice.mystical {
+    border-color: rgba(192, 132, 252, .85);
+    background: linear-gradient(180deg, rgba(60, 39, 88, .66), rgba(21, 19, 32, .96));
+  }
+  .choice.legend {
+    border-color: rgba(255, 159, 67, .95);
+    background: linear-gradient(180deg, rgba(93, 48, 19, .72), rgba(21, 19, 32, .96));
+  }
+
+  .rarity-tag {
+    float: right;
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .rarity-tag.common { color: var(--muted); }
+  .rarity-tag.rare { color: var(--blue); }
+  .rarity-tag.gilded { color: var(--gold); }
+  .rarity-tag.mystical { color: var(--purple); }
+  .rarity-tag.legend { color: var(--orange); }
+
   .log {
     height: 220px;
     overflow-y: auto;
@@ -340,6 +370,7 @@
     <div class="stats">
       <div class="pill">Floor <strong id="floorText">1</strong></div>
       <div class="pill">Gold <strong id="goldText">0</strong></div>
+      <div class="pill">Luck <strong id="luckText">0</strong></div>
       <div class="pill">Best <strong id="bestText">1</strong></div>
     </div>
   </div>
@@ -411,7 +442,8 @@ window.addEventListener("error", function(event) {
   if (box) box.textContent = "JavaScript error: " + event.message;
 });
 
-const SAVE_KEY = "pocket_dungeon_tiny_doom_crew_v036";
+const SAVE_KEY = "pocket_dungeon_tiny_doom_crew_v040";
+const LEGACY_SAVE_KEYS = ["pocket_dungeon_tiny_doom_crew_v036"];
 
 const HERO_LIBRARY = {
   knight: {
@@ -533,6 +565,19 @@ const ENEMY_LIBRARY = {
   }
 };
 
+const RARITIES = [
+  { id: "common", label: "Common", statMult: 1, luckMult: null },
+  { id: "rare", label: "Rare", statMult: 1.5, luckMult: 1 },
+  { id: "gilded", label: "Gilded", statMult: 2.25, luckMult: 1.25 },
+  { id: "mystical", label: "Mystical", statMult: 3.375, luckMult: 1.56 },
+  { id: "legend", label: "Legend", statMult: 5.0625, luckMult: 1.95 }
+];
+
+const RARITY_BY_ID = Object.fromEntries(RARITIES.map(r => [r.id, r]));
+const LUCK_MYSTICAL_UNLOCK = 4;
+const LUCK_LEGEND_UNLOCK = 10;
+const BASE_LUCK = 1;
+
 const BASE_PERSONAL = {
   maxHp: 18,
   atk: 4,
@@ -554,8 +599,11 @@ function upgradeScale() {
   return Math.min(1.35, 1 + Math.max(0, game.floor - 1) * 0.02);
 }
 
-function scaledAmount(amount, stat) {
-  const scaled = amount * upgradeScale();
+function scaledAmount(amount, stat, rarity = null, isLuck = false) {
+  const rarityInfo = rarity ? RARITY_BY_ID[rarity] : null;
+  const rarityMult = rarityInfo ? (isLuck ? rarityInfo.luckMult || 1 : rarityInfo.statMult) : 1;
+  const speedTuning = stat === "spd" ? .9 : 1;
+  const scaled = amount * upgradeScale() * rarityMult * speedTuning;
   return stat === "spd" ? round2(scaled) : Math.max(1, Math.round(scaled));
 }
 
@@ -567,18 +615,19 @@ let game = newGame();
 let lastTime = performance.now();
 
 function newGame() {
-  const knight = HERO_LIBRARY.knight.make();
+  const party = ["knight", "rogue", "cleric"].map(id => HERO_LIBRARY[id].make());
   return {
     floor: 1,
     gold: 0,
     bestFloor: 1,
-    party: [knight],
+    party,
     enemies: [],
     inBattle: false,
     waitingForUpgrade: false,
     wonPrototype: false,
     global: {
       goldMult: 1,
+      luck: 0,
       startShield: 0,
       teamBonus: {
         maxHp: 0,
@@ -654,6 +703,7 @@ function applyTeamBonusesToAll(keepHpRatio = true) {
 }
 
 function recruitHero(id) {
+  if (hasHero(id)) return game.party.find(h => h.id === id);
   const hero = HERO_LIBRARY[id].make();
   game.party.push(hero);
   applyAllBonusesToHero(hero, false);
@@ -670,12 +720,13 @@ function cloneEnemy(id, floor) {
   // Enemy scaling v0.3.6:
   // Halfway between the harsh old curve and the softer v0.3.5 curve,
   // plus tiny speed scaling so late-game enemies still get turns.
-  const hpScale = 1 + (floor - 1) * (t.boss ? 0.122 : 0.158);
-  const atkScale = 1 + (floor - 1) * (t.boss ? 0.092 : 0.118);
+  const winScale = enemyWinScale(t.boss);
+  const hpScale = (1 + (floor - 1) * (t.boss ? 0.122 : 0.158)) * winScale;
+  const atkScale = (1 + (floor - 1) * (t.boss ? 0.092 : 0.118)) * winScale;
   const defBonus = Math.floor(floor / (t.boss ? 5 : 4));
 
-  // Teeny speed growth, capped so bats do not become illegal aircraft.
-  const speedScale = Math.min(1.28, 1 + Math.max(0, floor - 1) * (t.boss ? 0.006 : 0.008));
+  // Teeny speed growth. No hard cap, just a deliberately slow curve.
+  const speedScale = 1 + Math.max(0, floor - 1) * (t.boss ? 0.0054 : 0.0072);
   const spd = round2(t.spd * speedScale);
 
   const maxHp = Math.round(t.maxHp * hpScale);
@@ -700,6 +751,11 @@ function cloneEnemy(id, floor) {
 
 function attackDelay(speed) {
   return 2.6 / Math.max(.25, speed);
+}
+
+function enemyWinScale(boss = false) {
+  const wins = Math.max(0, (game.floor || 1) - 1);
+  return 1 + wins * (boss ? .02 : .025);
 }
 
 function startBattle() {
@@ -747,10 +803,11 @@ function makeWave(floor) {
 
 function makeScaledBoss(floor) {
   const era = Math.floor(floor / 5);
+  const pressure = enemyWinScale(true);
 
   // Stronger than v0.3.5, softer than the original wall-of-doom.
-  const maxHp = Math.round(225 * (1 + era * 0.48) * (1 + floor * 0.03));
-  const spd = round2(.78 + Math.min(.32, era * .022 + floor * .002));
+  const maxHp = Math.round(225 * (1 + era * 0.48) * (1 + floor * 0.03) * pressure);
+  const spd = round2(.78 + era * .0198 + floor * .0018);
 
   return {
     id: "scaledBoss",
@@ -759,7 +816,7 @@ function makeScaledBoss(floor) {
     team: "enemy",
     maxHp,
     hp: maxHp,
-    atk: Math.round(14 * (1 + era * 0.255) * (1 + floor * 0.022)),
+    atk: Math.round(14 * (1 + era * 0.255) * (1 + floor * 0.022) * pressure),
     def: Math.round(3 + era * 1.25),
     spd,
     boss: true,
@@ -974,19 +1031,83 @@ function rollUpgradeChoices() {
   game.currentGoldChoice = buildGoldTrainingChoice();
 }
 
-function classAmount(hero, stat, paid = false) {
+function getLuck() {
+  return Math.max(0, Number((game.global && game.global.luck) || 0));
+}
+
+function availableRarities() {
+  const luck = getLuck();
+  return RARITIES.filter(r =>
+    r.id !== "mystical" || luck >= LUCK_MYSTICAL_UNLOCK
+  ).filter(r =>
+    r.id !== "legend" || luck >= LUCK_LEGEND_UNLOCK
+  );
+}
+
+function rollRarity(allowLuck = false) {
+  const luck = getLuck();
+  const available = availableRarities();
+  const baseWeights = {
+    common: allowLuck ? 0 : 70,
+    rare: allowLuck ? 72 : 24 + luck * 1.4,
+    gilded: 6 + luck * 1.1,
+    mystical: luck >= LUCK_MYSTICAL_UNLOCK ? 2 + (luck - LUCK_MYSTICAL_UNLOCK) * .65 : 0,
+    legend: luck >= LUCK_LEGEND_UNLOCK ? .7 + (luck - LUCK_LEGEND_UNLOCK) * .28 : 0
+  };
+  const weighted = available
+    .map(r => ({ rarity: r.id, weight: Math.max(0, baseWeights[r.id] || 0) }))
+    .filter(x => x.weight > 0);
+  const total = weighted.reduce((sum, x) => sum + x.weight, 0);
+  let roll = Math.random() * total;
+
+  for (const entry of weighted) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.rarity;
+  }
+
+  return allowLuck ? "rare" : "common";
+}
+
+function rarityLabel(rarity) {
+  return (RARITY_BY_ID[rarity] || RARITY_BY_ID.common).label;
+}
+
+function rarityUnlockText() {
+  const luck = getLuck();
+  if (luck >= LUCK_LEGEND_UNLOCK) return "Legend unlocked";
+  if (luck >= LUCK_MYSTICAL_UNLOCK) return `Mystical unlocked, Legend at ${LUCK_LEGEND_UNLOCK}`;
+  return `Mystical at ${LUCK_MYSTICAL_UNLOCK}, Legend at ${LUCK_LEGEND_UNLOCK}`;
+}
+
+function displayLuck(value = getLuck()) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function withRarity(choice, rarity) {
+  return Object.assign(choice, {
+    rarity,
+    rarityLabel: rarityLabel(rarity)
+  });
+}
+
+function classAmount(hero, stat, paid = false, rarity = null) {
   const template = HERO_LIBRARY[hero.id] || HERO_LIBRARY.knight;
   const base = BASE_PERSONAL[stat];
   const biasKey = stat === "maxHp" ? "hpBias" : `${stat}Bias`;
   const bias = template[biasKey] || 1;
   const strength = paid ? 2 : 1;
   const amount = base * bias * strength;
-  return scaledAmount(amount, stat);
+  return scaledAmount(amount, stat, rarity);
 }
 
-function teamAmount(stat, paid = false) {
+function teamAmount(stat, paid = false, rarity = null) {
   const amount = BASE_TEAM[stat] * (paid ? 2 : 1);
-  return scaledAmount(amount, stat);
+  return scaledAmount(amount, stat, rarity);
+}
+
+function luckAmount(rarity) {
+  const info = RARITY_BY_ID[rarity] || RARITY_BY_ID.rare;
+  return round2(BASE_LUCK * (info.luckMult || 1));
 }
 
 function buildPersonalUpgradePool() {
@@ -995,17 +1116,18 @@ function buildPersonalUpgradePool() {
 
   for (const hero of game.party) {
     for (const stat of stats) {
-      const amount = classAmount(hero, stat, false);
-      pool.push({
+      const rarity = rollRarity(false);
+      const amount = classAmount(hero, stat, false, rarity);
+      pool.push(withRarity({
         kind: "personal",
         title: `${hero.name}: +${displayAmount(stat, amount)} ${statLabel(stat)}`,
         desc: personalDesc(hero, stat, amount),
         apply: () => {
           hero.personalBonus[stat] += amount;
           applyAllBonusesToHero(hero, true);
-          ledger(`${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
+          ledger(`${rarityLabel(rarity)} ${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
         }
-      });
+      }, rarity));
     }
   }
 
@@ -1017,38 +1139,55 @@ function buildGlobalUpgradePool() {
   const stats = ["maxHp", "atk", "def", "spd"];
 
   for (const stat of stats) {
-    const amount = teamAmount(stat, false);
-    pool.push({
+    const rarity = rollRarity(false);
+    const amount = teamAmount(stat, false, rarity);
+    pool.push(withRarity({
       kind: "team",
       title: `Team: +${displayAmount(stat, amount)} ${statLabel(stat)}`,
       desc: `Weaker than personal training, but retroactive. New recruits also get it.`,
       apply: () => {
         game.global.teamBonus[stat] += amount;
         applyTeamBonusesToAll(true);
-        ledger(`Team gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
+        ledger(`${rarityLabel(rarity)} team gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
       }
-    });
+    }, rarity));
   }
 
-  pool.push({
+  const shieldRarity = rollRarity(false);
+  const shieldAmount = scaledAmount(12, "maxHp", shieldRarity);
+  pool.push(withRarity({
     kind: "team",
-    title: "Team: +12 Start Shield",
+    title: `Team: +${shieldAmount} Start Shield`,
     desc: "Every hero starts combat with extra shield. New recruits benefit too.",
     apply: () => {
-      game.global.startShield += 12;
-      ledger("Team gained +12 starting shield.");
+      game.global.startShield += shieldAmount;
+      ledger(`${rarityLabel(shieldRarity)} team gained +${shieldAmount} starting shield.`);
     }
-  });
+  }, shieldRarity));
 
-  pool.push({
+  const goldRarity = rollRarity(false);
+  const goldPercent = scaledAmount(25, "maxHp", goldRarity);
+  pool.push(withRarity({
     kind: "team",
-    title: "Treasure Nose: +25% Gold",
+    title: `Treasure Nose: +${goldPercent}% Gold`,
     desc: "More gold means more paid training. The capitalism rat approves.",
     apply: () => {
-      game.global.goldMult *= 1.25;
-      ledger("Gold drops increased by 25%.");
+      game.global.goldMult *= 1 + goldPercent / 100;
+      ledger(`${rarityLabel(goldRarity)} gold drops increased by ${goldPercent}%.`);
     }
-  });
+  }, goldRarity));
+
+  const luckRarity = rollRarity(true);
+  const luck = luckAmount(luckRarity);
+  pool.push(withRarity({
+    kind: "luck",
+    title: `Lucky Charm: +${luck} Luck`,
+    desc: `Unlocks Mystical at ${LUCK_MYSTICAL_UNLOCK} Luck and Legend at ${LUCK_LEGEND_UNLOCK} Luck. Luck scales gently by rarity.`,
+    apply: () => {
+      game.global.luck = getLuck() + luck;
+      ledger(`${rarityLabel(luckRarity)} luck increased by ${luck}.`);
+    }
+  }, luckRarity));
 
   return pool;
 }
@@ -1260,9 +1399,11 @@ function render() {
   if (!game.enemies || !Array.isArray(game.enemies)) game.enemies = [];
   if (!game.global) game.global = newGame().global;
   if (!game.global.teamBonus) game.global.teamBonus = { maxHp: 0, atk: 0, def: 0, spd: 0 };
+  if (typeof game.global.luck !== "number") game.global.luck = 0;
 
   document.getElementById("floorText").textContent = game.floor;
   document.getElementById("goldText").textContent = Math.floor(game.gold);
+  document.getElementById("luckText").textContent = displayLuck();
   document.getElementById("bestText").textContent = game.bestFloor;
   document.getElementById("battleState").textContent =
     game.inBattle ? "Fighting" : game.waitingForUpgrade ? "Upgrade" : "Idle";
@@ -1286,6 +1427,7 @@ function render() {
 function renderUnitsOnly() {
   document.getElementById("floorText").textContent = game.floor;
   document.getElementById("goldText").textContent = Math.floor(game.gold);
+  document.getElementById("luckText").textContent = displayLuck();
   renderUnits();
 }
 
@@ -1338,9 +1480,9 @@ function renderChoices() {
   banner.textContent = `Floor cleared. Choose one free upgrade before Floor ${game.floor}. Gold training is optional.`;
 
   const freeChoices = (game.currentChoices || []).map((c, i) => `
-    <button class="choice" onclick="chooseUpgrade(${i})">
+    <button class="choice ${c.rarity || "common"}" onclick="chooseUpgrade(${i})">
       <strong>${c.kind === "team" ? "🌐 " : c.kind === "personal" ? "🎯 " : "➕ "}${c.title}</strong>
-      <small>${c.desc}</small>
+      <small><span class="rarity-tag ${c.rarity || "common"}">${c.rarityLabel || rarityLabel(c.rarity)}</span>${c.desc}</small>
     </button>
   `).join("");
 
@@ -1375,6 +1517,7 @@ function renderLedger() {
   const team = Object.assign({ maxHp: 0, atk: 0, def: 0, spd: 0 }, game.global.teamBonus || {});
   const startShield = Number.isFinite(game.global.startShield) ? game.global.startShield : 0;
   const goldMult = Number.isFinite(game.global.goldMult) ? game.global.goldMult : 1;
+  const luck = getLuck();
   const summary = `
     <p class="important">Team bonuses: +${team.maxHp} HP · +${team.atk} ATK · +${team.def} DEF · +${Number(team.spd || 0).toFixed(2)} SPD · +${startShield} Shield · ×${goldMult.toFixed(2)} Gold</p>
   `;
@@ -1382,7 +1525,7 @@ function renderLedger() {
   const ledger = game.upgradeLedger || [];
   const rows = ledger.slice(-16).reverse().map(x => `<p>F${x.floor}: ${escapeHtml(x.text)}</p>`).join("");
 
-  el.innerHTML = summary + (rows || `<p>No upgrades yet. The ledger is clean. Suspiciously clean.</p>`);
+  el.innerHTML = summary + `<p class="important">Luck: ${displayLuck(luck)} (${rarityUnlockText()})</p>` + (rows || `<p>No upgrades yet. The ledger is clean. Suspiciously clean.</p>`);
 }
 
 function teamPower(team) {
@@ -1400,7 +1543,13 @@ function saveGame(silent = false) {
 
 function loadGame(showMessage = false) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    let raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) {
+      for (const key of LEGACY_SAVE_KEYS) {
+        raw = localStorage.getItem(key);
+        if (raw) break;
+      }
+    }
     if (!raw) {
       if (showMessage) addLog("No save found. The vault is empty and judging us.", "bad");
       return;
@@ -1417,11 +1566,15 @@ function loadGame(showMessage = false) {
 
 function repairSave(data) {
   const fresh = newGame();
-  const merged = Object.assign(fresh, data);
+  let merged = Object.assign(fresh, data);
 
   merged.global = Object.assign(fresh.global, data.global || {});
   merged.global.teamBonus = Object.assign(fresh.global.teamBonus, (data.global && data.global.teamBonus) || {});
+  merged.global.luck = Number.isFinite(merged.global.luck) ? merged.global.luck : 0;
   merged.party = Array.isArray(data.party) ? data.party : fresh.party;
+  ["knight", "rogue", "cleric"].forEach(id => {
+    if (!merged.party.some(u => u.id === id)) merged.party.push(HERO_LIBRARY[id].make());
+  });
   merged.enemies = Array.isArray(data.enemies) ? data.enemies : [];
   merged.log = Array.isArray(data.log) ? data.log.slice(-80) : [];
   merged.upgradeLedger = Array.isArray(data.upgradeLedger) ? data.upgradeLedger : [];
@@ -1453,14 +1606,21 @@ function repairSave(data) {
     if (!u.team) u.team = "enemy";
   });
 
+  if (merged.waitingForUpgrade) {
+    game = merged;
+    rollUpgradeChoices();
+    merged = game;
+  }
+
   return merged;
 }
 
 function hardReset() {
   if (!confirm("Reset the run? Your tiny doom crew will forget where it parked.")) return;
   localStorage.removeItem(SAVE_KEY);
+  LEGACY_SAVE_KEYS.forEach(key => localStorage.removeItem(key));
   game = newGame();
-  addLog("New run started. Knight enters with confidence and questionable insurance.", "important");
+  addLog("New run started. The full crew enters with confidence and questionable insurance.", "important");
   render();
 }
 
@@ -1473,7 +1633,7 @@ function escapeHtml(str) {
 
 loadGame(false);
 if (game.log.length === 0) {
-  addLog("Knight arrives at the dungeon door. The door feels mildly threatened.", "important");
+  addLog("The full crew arrives at the dungeon door. The door feels mildly threatened.", "important");
 }
 render();
 requestAnimationFrame(gameLoop);
