@@ -576,6 +576,7 @@ const RARITIES = [
 const RARITY_BY_ID = Object.fromEntries(RARITIES.map(r => [r.id, r]));
 const LUCK_MYSTICAL_UNLOCK = 4;
 const LUCK_LEGEND_UNLOCK = 10;
+const HIDDEN_LUCK_PER_STAGE = .1;
 const BASE_LUCK = 1;
 
 const BASE_PERSONAL = {
@@ -1035,8 +1036,13 @@ function getLuck() {
   return Math.max(0, Number((game.global && game.global.luck) || 0));
 }
 
+function getEffectiveLuck() {
+  const clearedStages = Math.max(0, (game.floor || 1) - 1);
+  return getLuck() + clearedStages * HIDDEN_LUCK_PER_STAGE;
+}
+
 function availableRarities() {
-  const luck = getLuck();
+  const luck = getEffectiveLuck();
   return RARITIES.filter(r =>
     r.id !== "mystical" || luck >= LUCK_MYSTICAL_UNLOCK
   ).filter(r =>
@@ -1045,7 +1051,7 @@ function availableRarities() {
 }
 
 function rollRarity(allowLuck = false) {
-  const luck = getLuck();
+  const luck = getEffectiveLuck();
   const available = availableRarities();
   const baseWeights = {
     common: allowLuck ? 0 : 70,
