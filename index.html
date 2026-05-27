@@ -324,6 +324,13 @@
     margin-bottom: 10px;
   }
 
+  .reward-info {
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 800;
+    margin: -2px 0 10px;
+  }
+
   .hidden { display: none !important; }
 
 
@@ -406,6 +413,7 @@
   <section class="card" id="upgradeCard">
     <h2>Upgrade Choices</h2>
     <div id="upgradeBanner" class="victory-banner hidden"></div>
+    <div id="rewardInfo" class="reward-info hidden"></div>
     <div id="choices" class="choices"></div>
   </section>
 
@@ -1034,11 +1042,12 @@ function rollUpgradeChoices() {
   ];
   shuffle(combined);
 
-  while (choices.length < 3 && combined.length) choices.push(combined.pop());
+  const freeChoiceCount = bossReward ? 4 : 3;
+  while (choices.length < freeChoiceCount && combined.length) choices.push(combined.pop());
 
-  // In case there are more than 3 somehow, shuffle lightly so recruit is guaranteed
+  // In case there are more than the target somehow, trim to the screen's choice count.
   // but the other two choices still vary.
-  game.currentChoices = choices.slice(0, 3);
+  game.currentChoices = choices.slice(0, freeChoiceCount);
   game.currentGoldChoice = buildGoldTrainingChoice();
 }
 
@@ -1097,8 +1106,7 @@ function rarityLabel(rarity) {
   return (RARITY_BY_ID[rarity] || RARITY_BY_ID.common).label;
 }
 
-function rarityUnlockText() {
-  const luck = getLuck();
+function rarityUnlockText(luck = getLuck()) {
   if (luck >= LUCK_LEGEND_UNLOCK) return "Legend unlocked";
   if (luck >= LUCK_MYSTICAL_UNLOCK) return `Mystical unlocked, Legend at ${LUCK_LEGEND_UNLOCK}`;
   return `Mystical at ${LUCK_MYSTICAL_UNLOCK}, Legend at ${LUCK_LEGEND_UNLOCK}`;
@@ -1117,6 +1125,35 @@ function withRarity(choice, rarity) {
 
 function uniqueChance() {
   return Math.min(.75, UNIQUE_BASE_CHANCE * (1 + getEffectiveLuck() * .5));
+}
+
+function rarityOddsText(bossReward = false) {
+  const luck = getEffectiveLuck();
+  const weights = {
+    common: 70,
+    rare: 24 + luck * 1.4,
+    gilded: 6 + luck * 1.1,
+    mystical: luck >= LUCK_MYSTICAL_UNLOCK ? 14 + (luck - LUCK_MYSTICAL_UNLOCK) * 2.4 : 0,
+    legend: luck >= LUCK_LEGEND_UNLOCK ? 6 + (luck - LUCK_LEGEND_UNLOCK) * 1.1 : 0
+  };
+
+  if (bossReward) {
+    weights.rare += weights.common;
+    weights.common = 0;
+    weights.gilded *= 2;
+    weights.mystical *= 2;
+    weights.legend *= 2;
+  }
+
+  const available = availableRarities().map(r => r.id);
+  const total = Object.entries(weights)
+    .filter(([rarity]) => available.includes(rarity))
+    .reduce((sum, [, weight]) => sum + Math.max(0, weight), 0);
+
+  return ["common", "rare", "gilded", "mystical", "legend"]
+    .filter(rarity => available.includes(rarity) && weights[rarity] > 0)
+    .map(rarity => `${rarityLabel(rarity)} ${Math.round((weights[rarity] / total) * 100)}%`)
+    .join(" · ");
 }
 
 function maybeAddUnique(choice, rarity, preferredHero = null, avoidStat = null) {
@@ -1524,18 +1561,22 @@ function unitHtml(u, team) {
 function renderChoices() {
   const card = document.getElementById("upgradeCard");
   const banner = document.getElementById("upgradeBanner");
+  const rewardInfo = document.getElementById("rewardInfo");
   const choices = document.getElementById("choices");
 
   if (!game.waitingForUpgrade) {
     card.classList.add("hidden");
+    rewardInfo.classList.add("hidden");
     return;
   }
 
   card.classList.remove("hidden");
   banner.classList.remove("hidden");
+  rewardInfo.classList.remove("hidden");
   banner.textContent = game.bossRewardPending
-    ? `Boss cleared. Choose one boosted free upgrade before Floor ${game.floor}. Gold training is optional.`
+    ? `Boss cleared. Choose one of four boosted free upgrades before Floor ${game.floor}. Gold training is optional.`
     : `Floor cleared. Choose one free upgrade before Floor ${game.floor}. Gold training is optional.`;
+  rewardInfo.textContent = `Unique ${Math.round(uniqueChance() * 1000) / 10}% · ${rarityUnlockText(getEffectiveLuck())} · ${rarityOddsText(!!game.bossRewardPending)}`;
 
   const freeChoices = (game.currentChoices || []).map((c, i) => `
     <button class="choice ${c.rarity || "common"} ${c.unique ? "unique" : ""}" onclick="chooseUpgrade(${i})">
