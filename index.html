@@ -269,6 +269,10 @@
     background: linear-gradient(180deg, rgba(93, 48, 19, .72), rgba(21, 19, 32, .96));
   }
 
+  .choice.unique {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 4px 0 rgba(0,0,0,.28);
+  }
+
   .rarity-tag {
     float: right;
     color: var(--muted);
@@ -577,6 +581,7 @@ const RARITY_BY_ID = Object.fromEntries(RARITIES.map(r => [r.id, r]));
 const LUCK_MYSTICAL_UNLOCK = 4;
 const LUCK_LEGEND_UNLOCK = 10;
 const HIDDEN_LUCK_PER_STAGE = .1;
+const UNIQUE_BASE_CHANCE = .03;
 const BASE_LUCK = 1;
 
 const BASE_PERSONAL = {
@@ -640,6 +645,7 @@ function newGame() {
     upgradeLedger: [],
     currentChoices: [],
     currentGoldChoice: null,
+    bossRewardPending: false,
     goldChoicePurchased: false,
     goldPurchaseCount: 0,
     log: []
@@ -960,11 +966,13 @@ function weakest(list) {
 function winBattle() {
   game.inBattle = false;
 
-  const gold = Math.round((18 + game.floor * 7) * game.global.goldMult);
+  const defeatedBoss = game.enemies.some(enemy => enemy.boss);
+  const bossGoldMult = defeatedBoss ? 1.5 : 1;
+  const gold = Math.round((18 + game.floor * 7) * game.global.goldMult * bossGoldMult);
   game.gold += gold;
   game.bestFloor = Math.max(game.bestFloor, game.floor + 1);
 
-  addLog(`Victory! The crew steals ${gold} gold and one questionable sandwich.`, "important");
+  addLog(`Victory! The crew steals ${gold} gold and one questionable sandwich${defeatedBoss ? " from the boss stash" : ""}.`, "important");
 
   // v0.3.5: Floor 10 is no longer the end. Keep pushing until the dungeon says sorry.
   if (game.floor === 10) {
@@ -973,6 +981,7 @@ function winBattle() {
 
   game.floor++;
   game.waitingForUpgrade = true;
+  game.bossRewardPending = defeatedBoss;
   game.goldChoicePurchased = false;
   rollUpgradeChoices();
   saveGame(true);
@@ -994,8 +1003,9 @@ function showWinPrototype() {
 }
 
 function rollUpgradeChoices() {
-  const personal = buildPersonalUpgradePool();
-  const global = buildGlobalUpgradePool();
+  const bossReward = !!game.bossRewardPending;
+  const personal = buildPersonalUpgradePool(bossReward);
+  const global = buildGlobalUpgradePool(bossReward);
   const recruits = buildRecruitPool();
 
   shuffle(personal);
@@ -1050,7 +1060,7 @@ function availableRarities() {
   );
 }
 
-function rollRarity(allowLuck = false) {
+function rollRarity(allowLuck = false, bossReward = false) {
   const luck = getEffectiveLuck();
   const available = availableRarities();
   const baseWeights = {
@@ -1060,6 +1070,15 @@ function rollRarity(allowLuck = false) {
     mystical: luck >= LUCK_MYSTICAL_UNLOCK ? 14 + (luck - LUCK_MYSTICAL_UNLOCK) * 2.4 : 0,
     legend: luck >= LUCK_LEGEND_UNLOCK ? 6 + (luck - LUCK_LEGEND_UNLOCK) * 1.1 : 0
   };
+
+  if (bossReward) {
+    baseWeights.rare += baseWeights.common;
+    baseWeights.common = 0;
+    baseWeights.gilded *= 2;
+    baseWeights.mystical *= 2;
+    baseWeights.legend *= 2;
+  }
+
   const weighted = available
     .map(r => ({ rarity: r.id, weight: Math.max(0, baseWeights[r.id] || 0) }))
     .filter(x => x.weight > 0);
@@ -1096,6 +1115,33 @@ function withRarity(choice, rarity) {
   });
 }
 
+function uniqueChance() {
+  return Math.min(.75, UNIQUE_BASE_CHANCE * (1 + getEffectiveLuck() * .5));
+}
+
+function maybeAddUnique(choice, rarity, preferredHero = null, avoidStat = null) {
+  if (Math.random() >= uniqueChance()) return choice;
+
+  const hero = preferredHero || game.party[Math.floor(Math.random() * game.party.length)];
+  if (!hero) return choice;
+
+  const stats = ["maxHp", "atk", "def", "spd"].filter(stat => stat !== avoidStat);
+  const stat = stats[Math.floor(Math.random() * stats.length)];
+  const amount = classAmount(hero, stat, false, rarity);
+  const baseApply = choice.apply;
+
+  choice.unique = { hero, stat, amount, rarity };
+  choice.desc += ` Unique: ${rarityLabel(rarity)} ${hero.name} also gains +${displayAmount(stat, amount)} ${statLabel(stat)}.`;
+  choice.apply = () => {
+    baseApply();
+    hero.personalBonus[stat] += amount;
+    applyAllBonusesToHero(hero, true);
+    ledger(`Unique ${rarityLabel(rarity)} bonus: ${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
+  };
+
+  return choice;
+}
+
 function classAmount(hero, stat, paid = false, rarity = null) {
   const template = HERO_LIBRARY[hero.id] || HERO_LIBRARY.knight;
   const base = BASE_PERSONAL[stat];
@@ -1116,15 +1162,15 @@ function luckAmount(rarity) {
   return round2(BASE_LUCK * (info.luckMult || 1));
 }
 
-function buildPersonalUpgradePool() {
+function buildPersonalUpgradePool(bossReward = false) {
   const pool = [];
   const stats = ["maxHp", "atk", "def", "spd"];
 
   for (const hero of game.party) {
     for (const stat of stats) {
-      const rarity = rollRarity(false);
+      const rarity = rollRarity(false, bossReward);
       const amount = classAmount(hero, stat, false, rarity);
-      pool.push(withRarity({
+      pool.push(maybeAddUnique(withRarity({
         kind: "personal",
         title: `${hero.name}: +${displayAmount(stat, amount)} ${statLabel(stat)}`,
         desc: personalDesc(hero, stat, amount),
@@ -1133,21 +1179,21 @@ function buildPersonalUpgradePool() {
           applyAllBonusesToHero(hero, true);
           ledger(`${rarityLabel(rarity)} ${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
         }
-      }, rarity));
+      }, rarity), rarity, hero, stat));
     }
   }
 
   return pool;
 }
 
-function buildGlobalUpgradePool() {
+function buildGlobalUpgradePool(bossReward = false) {
   const pool = [];
   const stats = ["maxHp", "atk", "def", "spd"];
 
   for (const stat of stats) {
-    const rarity = rollRarity(false);
+    const rarity = rollRarity(false, bossReward);
     const amount = teamAmount(stat, false, rarity);
-    pool.push(withRarity({
+    pool.push(maybeAddUnique(withRarity({
       kind: "team",
       title: `Team: +${displayAmount(stat, amount)} ${statLabel(stat)}`,
       desc: `Weaker than personal training, but retroactive. New recruits also get it.`,
@@ -1156,12 +1202,12 @@ function buildGlobalUpgradePool() {
         applyTeamBonusesToAll(true);
         ledger(`${rarityLabel(rarity)} team gained +${displayAmount(stat, amount)} ${statLabel(stat)}.`);
       }
-    }, rarity));
+    }, rarity), rarity));
   }
 
-  const shieldRarity = rollRarity(false);
+  const shieldRarity = rollRarity(false, bossReward);
   const shieldAmount = scaledAmount(12, "maxHp", shieldRarity);
-  pool.push(withRarity({
+  pool.push(maybeAddUnique(withRarity({
     kind: "team",
     title: `Team: +${shieldAmount} Start Shield`,
     desc: "Every hero starts combat with extra shield. New recruits benefit too.",
@@ -1169,11 +1215,11 @@ function buildGlobalUpgradePool() {
       game.global.startShield += shieldAmount;
       ledger(`${rarityLabel(shieldRarity)} team gained +${shieldAmount} starting shield.`);
     }
-  }, shieldRarity));
+  }, shieldRarity), shieldRarity));
 
-  const goldRarity = rollRarity(false);
+  const goldRarity = rollRarity(false, bossReward);
   const goldPercent = scaledAmount(25, "maxHp", goldRarity);
-  pool.push(withRarity({
+  pool.push(maybeAddUnique(withRarity({
     kind: "team",
     title: `Treasure Nose: +${goldPercent}% Gold`,
     desc: "More gold means more paid training. The capitalism rat approves.",
@@ -1181,11 +1227,11 @@ function buildGlobalUpgradePool() {
       game.global.goldMult *= 1 + goldPercent / 100;
       ledger(`${rarityLabel(goldRarity)} gold drops increased by ${goldPercent}%.`);
     }
-  }, goldRarity));
+  }, goldRarity), goldRarity));
 
-  const luckRarity = rollRarity(true);
+  const luckRarity = rollRarity(true, bossReward);
   const luck = luckAmount(luckRarity);
-  pool.push(withRarity({
+  pool.push(maybeAddUnique(withRarity({
     kind: "luck",
     title: `Lucky Charm: +${luck} Luck`,
     desc: `Unlocks Mystical at ${LUCK_MYSTICAL_UNLOCK} Luck and Legend at ${LUCK_LEGEND_UNLOCK} Luck. Luck scales gently by rarity.`,
@@ -1193,7 +1239,7 @@ function buildGlobalUpgradePool() {
       game.global.luck = getLuck() + luck;
       ledger(`${rarityLabel(luckRarity)} luck increased by ${luck}.`);
     }
-  }, luckRarity));
+  }, luckRarity), luckRarity));
 
   return pool;
 }
@@ -1245,7 +1291,8 @@ function buildGoldTrainingChoice() {
   for (const hero of game.party) {
     for (const stat of stats) {
       const amount = classAmount(hero, stat, true);
-      candidates.push({
+      const uniqueRarity = rollRarity(false, !!game.bossRewardPending);
+      candidates.push(maybeAddUnique({
         kind: "gold-personal",
         title: `Gold Training: ${hero.name} +${displayAmount(stat, amount)} ${statLabel(stat)}`,
         desc: `Costs ${cost} gold. Double-strength personal stat training.`,
@@ -1258,14 +1305,15 @@ function buildGoldTrainingChoice() {
           game.goldChoicePurchased = true;
           ledger(`Gold personal training: ${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${cost} gold.`);
         }
-      });
+      }, uniqueRarity, hero, stat));
     }
   }
 
   // Paid team upgrades: double-strength team bonuses, retroactive and inherited by future recruits.
   for (const stat of stats) {
     const amount = teamAmount(stat, true);
-    candidates.push({
+    const uniqueRarity = rollRarity(false, !!game.bossRewardPending);
+    candidates.push(maybeAddUnique({
       kind: "gold-team",
       title: `Gold Team Drill: +${displayAmount(stat, amount)} ${statLabel(stat)} Team`,
       desc: `Costs ${cost} gold. Double-strength team upgrade. Retroactive and inherited by new recruits.`,
@@ -1278,10 +1326,11 @@ function buildGoldTrainingChoice() {
         game.goldChoicePurchased = true;
         ledger(`Gold team drill: team gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${cost} gold.`);
       }
-    });
+    }, uniqueRarity));
   }
 
-  candidates.push({
+  const shieldUniqueRarity = rollRarity(false, !!game.bossRewardPending);
+  candidates.push(maybeAddUnique({
     kind: "gold-team",
     title: "Gold Team Drill: +24 Start Shield",
     desc: `Costs ${cost} gold. Double-strength starting shield for every hero.`,
@@ -1293,7 +1342,7 @@ function buildGoldTrainingChoice() {
       game.goldChoicePurchased = true;
       ledger(`Gold team drill: team gained +24 starting shield for ${cost} gold.`);
     }
-  });
+  }, shieldUniqueRarity));
 
   shuffle(candidates);
   return candidates[0];
@@ -1333,6 +1382,7 @@ function chooseUpgrade(index) {
   addLog(`Upgrade chosen: ${choice.title}.`, "important");
 
   game.waitingForUpgrade = false;
+  game.bossRewardPending = false;
   game.currentChoices = [];
   game.currentGoldChoice = null;
   document.getElementById("messageBox").textContent = "Upgrade locked in. Start the next fight when ready.";
@@ -1483,10 +1533,12 @@ function renderChoices() {
 
   card.classList.remove("hidden");
   banner.classList.remove("hidden");
-  banner.textContent = `Floor cleared. Choose one free upgrade before Floor ${game.floor}. Gold training is optional.`;
+  banner.textContent = game.bossRewardPending
+    ? `Boss cleared. Choose one boosted free upgrade before Floor ${game.floor}. Gold training is optional.`
+    : `Floor cleared. Choose one free upgrade before Floor ${game.floor}. Gold training is optional.`;
 
   const freeChoices = (game.currentChoices || []).map((c, i) => `
-    <button class="choice ${c.rarity || "common"}" onclick="chooseUpgrade(${i})">
+    <button class="choice ${c.rarity || "common"} ${c.unique ? "unique" : ""}" onclick="chooseUpgrade(${i})">
       <strong>${c.kind === "team" ? "🌐 " : c.kind === "personal" ? "🎯 " : "➕ "}${c.title}</strong>
       <small><span class="rarity-tag ${c.rarity || "common"}">${c.rarityLabel || rarityLabel(c.rarity)}</span>${c.desc}</small>
     </button>
@@ -1494,7 +1546,7 @@ function renderChoices() {
 
   const gold = game.currentGoldChoice;
   const goldHtml = gold ? `
-    <button class="choice" onclick="buyGoldTraining()" ${game.gold < (gold.cost || goldTrainingCost()) || game.goldChoicePurchased ? "disabled" : ""}>
+    <button class="choice ${gold.unique ? "unique" : ""}" onclick="buyGoldTraining()" ${game.gold < (gold.cost || goldTrainingCost()) || game.goldChoicePurchased ? "disabled" : ""}>
       <strong>💰 ${game.goldChoicePurchased ? "Gold Training Purchased" : gold.title}</strong>
       <small>${game.goldChoicePurchased ? "Already bought for this floor." : `${gold.desc} You have ${Math.floor(game.gold)} gold. Next cost after purchase scales upward.`}</small>
     </button>
@@ -1586,6 +1638,7 @@ function repairSave(data) {
   merged.upgradeLedger = Array.isArray(data.upgradeLedger) ? data.upgradeLedger : [];
   merged.currentChoices = [];
   merged.currentGoldChoice = null;
+  merged.bossRewardPending = !!merged.bossRewardPending;
   merged.goldPurchaseCount = Number.isFinite(merged.goldPurchaseCount) ? merged.goldPurchaseCount : 0;
   merged.wonPrototype = !!merged.wonPrototype;
   merged.waitingForUpgrade = !!merged.waitingForUpgrade && !merged.wonPrototype;
