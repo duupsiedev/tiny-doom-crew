@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Pocket Dungeon: Tiny Doom Crew v0.3.6</title>
+<title>Pocket Dungeon: Tiny Doom Crew v0.4</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,7 +11,7 @@
   <div class="topbar">
     <div class="title">
       POCKET DUNGEON
-      <small>Tiny Doom Crew v0.3.6</small>
+      <small>Tiny Doom Crew v0.4</small>
     </div>
     <div class="stats">
       <div class="pill">Floor <strong id="floorText">1</strong></div>
@@ -58,11 +58,6 @@
   </section>
 
   <section class="card">
-    <h2>Upgrade Ledger <span id="upgradeCount">0 picked</span></h2>
-    <div id="upgradeList" class="upgrade-list"></div>
-  </section>
-
-  <section class="card">
     <h2>Controls</h2>
     <div class="actions">
       <button class="primary full" id="startBtn" onclick="startBattle()">Start Fight</button>
@@ -76,10 +71,6 @@
     <h2>Combat Log</h2>
     <div class="log" id="log"></div>
   </section>
-
-  <div class="footer-note">
-    Tiny Doom Crew prototype. Gold has a job. Speed stopped lying.
-  </div>
 </main>
 
 <script src="src/data.js"></script>

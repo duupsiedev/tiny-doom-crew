@@ -51,9 +51,8 @@ function repairSave(data) {
   merged.currentGoldChoice = null;
   merged.bossRewardPending = !!merged.bossRewardPending;
   merged.goldPurchaseCount = Number.isFinite(merged.goldPurchaseCount) ? merged.goldPurchaseCount : 0;
-  merged.wonPrototype = !!merged.wonPrototype;
-  merged.waitingForUpgrade = !!merged.waitingForUpgrade && !merged.wonPrototype;
-  merged.inBattle = !!merged.inBattle && !merged.waitingForUpgrade && !merged.wonPrototype;
+  merged.waitingForUpgrade = !!merged.waitingForUpgrade;
+  merged.inBattle = !!merged.inBattle && !merged.waitingForUpgrade;
 
   merged.party.forEach(u => {
     const template = HERO_LIBRARY[u.id] || HERO_LIBRARY.knight;

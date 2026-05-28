@@ -2,39 +2,25 @@ function rollUpgradeChoices() {
   const bossReward = !!game.bossRewardPending;
   const personal = buildPersonalUpgradePool(bossReward);
   const global = buildGlobalUpgradePool(bossReward);
-  const recruits = buildRecruitPool();
 
   shuffle(personal);
   shuffle(global);
-  shuffle(recruits);
 
   const choices = [];
 
-  // Recruitment should not be pure lottery misery.
-  // If a recruit is available, guarantee one recruit option.
-  if (recruits.length > 0) {
-    choices.push(recruits[0]);
-  }
-
-  // Then try to show both upgrade families:
-  // personal = stronger single-character boost
-  // team = weaker retroactive party boost
+  // Show both upgrade families when possible.
   if (personal.length > 0) choices.push(personal[0]);
   if (global.length > 0) choices.push(global[0]);
 
-  // Fill remaining slots with a mixed pool.
   const combined = [
     ...personal.slice(1),
-    ...global.slice(1),
-    ...recruits.slice(1)
+    ...global.slice(1)
   ];
   shuffle(combined);
 
   const freeChoiceCount = bossReward ? 4 : 3;
   while (choices.length < freeChoiceCount && combined.length) choices.push(combined.pop());
 
-  // In case there are more than the target somehow, trim to the screen's choice count.
-  // but the other two choices still vary.
   game.currentChoices = choices.slice(0, freeChoiceCount);
   game.currentGoldChoice = buildGoldTrainingChoice();
 }
@@ -221,7 +207,7 @@ function buildGlobalUpgradePool(bossReward = false) {
     pool.push(maybeAddUnique(withRarity({
       kind: "team",
       title: `Team: +${displayAmount(stat, amount)} ${statLabel(stat)}`,
-      desc: `Weaker than personal training, but retroactive. New recruits also get it.`,
+      desc: `Weaker than personal training, but retroactive across the crew.`,
       apply: () => {
         game.global.teamBonus[stat] += amount;
         applyTeamBonusesToAll(true);
@@ -235,7 +221,7 @@ function buildGlobalUpgradePool(bossReward = false) {
   pool.push(maybeAddUnique(withRarity({
     kind: "team",
     title: `Team: +${fmtNumber(shieldAmount)} Start Shield`,
-    desc: "Every hero starts combat with extra shield. New recruits benefit too.",
+    desc: "Every hero starts combat with extra shield.",
     apply: () => {
       game.global.startShield += shieldAmount;
       ledger(`${rarityLabel(shieldRarity)} team gained +${fmtNumber(shieldAmount)} starting shield.`);
@@ -269,39 +255,6 @@ function buildGlobalUpgradePool(bossReward = false) {
   return pool;
 }
 
-function buildRecruitPool() {
-  const pool = [];
-
-  if (!hasHero("rogue")) {
-    pool.push({
-      kind: "recruit",
-      title: "Recruit Rogue",
-      desc: "Fast, fragile, and legally considered a cutlery incident.",
-      apply: () => {
-        recruitHero("rogue");
-        addLog("🗡️ Rogue joins the crew. Hide the shiny things.", "weird");
-        ledger("Recruited Rogue.");
-      }
-    });
-  }
-
-  if (!hasHero("cleric") && game.floor >= 4) {
-    pool.push({
-      kind: "recruit",
-      title: "Recruit Cleric",
-      desc: "Heals allies and judges everyone quietly.",
-      apply: () => {
-        recruitHero("cleric");
-        addLog("✨ Cleric joins the crew. The vibe becomes 14% safer.", "weird");
-        ledger("Recruited Cleric.");
-      }
-    });
-  }
-
-  return pool;
-}
-
-
 function goldTrainingCost() {
   const n = game.goldPurchaseCount || 0;
   return Math.round((GOLD_TRAINING_BASE_COST + GOLD_TRAINING_LINEAR * n) * Math.pow(GOLD_TRAINING_MULT, n));
@@ -334,14 +287,14 @@ function buildGoldTrainingChoice() {
     }
   }
 
-  // Paid team upgrades: double-strength team bonuses, retroactive and inherited by future recruits.
+  // Paid team upgrades: double-strength team bonuses, retroactive across the crew.
   for (const stat of stats) {
     const amount = teamAmount(stat, true);
     const uniqueRarity = rollRarity(false, !!game.bossRewardPending);
     candidates.push(maybeAddUnique({
       kind: "gold-team",
       title: `Gold Team Drill: +${displayAmount(stat, amount)} ${statLabel(stat)} Team`,
-      desc: `Costs ${fmtNumber(cost)} gold. Double-strength team upgrade. Retroactive and inherited by new recruits.`,
+      desc: `Costs ${fmtNumber(cost)} gold. Double-strength team upgrade. Retroactive across the crew.`,
       cost,
       apply: () => {
         game.global.teamBonus[stat] += amount;
@@ -432,9 +385,6 @@ function buyGoldTraining() {
   render();
 }
 
-function hasHero(id) {
-  return game.party.some(h => h.id === id);
-}
 
 function displayAmount(stat, amount) {
   return stat === "spd" ? amount.toFixed(2) : fmtNumber(amount);

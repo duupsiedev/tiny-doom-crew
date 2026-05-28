@@ -1,6 +1,6 @@
 function render() {
   if (!game.party || !Array.isArray(game.party) || game.party.length === 0) {
-    game.party = [HERO_LIBRARY.knight.make()];
+    game.party = ["knight", "rogue", "cleric"].map(id => HERO_LIBRARY[id].make());
     applyTeamBonusesToAll(false);
   }
   if (!game.enemies || !Array.isArray(game.enemies)) game.enemies = [];
@@ -16,7 +16,7 @@ function render() {
     game.inBattle ? "Fighting" : game.waitingForUpgrade ? "Upgrade" : "Idle";
 
   document.getElementById("startBtn").disabled =
-    game.inBattle || game.waitingForUpgrade || game.wonPrototype || living(game.party).length === 0;
+    game.inBattle || game.waitingForUpgrade || living(game.party).length === 0;
 
   document.getElementById("partyPower").textContent = `${fmtNumber(Math.round(teamPower(game.party)))} power`;
   document.getElementById("enemyPower").textContent = game.enemies.length ? `${fmtNumber(Math.round(teamPower(game.enemies)))} power` : "";
@@ -26,7 +26,7 @@ function render() {
   renderLedger();
   renderLog();
 
-  if (!game.inBattle && !game.waitingForUpgrade && !game.wonPrototype && living(game.party).length > 0) {
+  if (!game.inBattle && !game.waitingForUpgrade && living(game.party).length > 0) {
     document.getElementById("messageBox").textContent = "Ready. Start the next fight and let fate wear a tiny helmet.";
   }
 }

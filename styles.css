@@ -1,12 +1,10 @@
 :root {
     --bg: #09080f;
-    --panel: #151320;
     --panel2: #1e1a2e;
     --line: #39304f;
     --text: #f1ecff;
     --muted: #a99fc2;
     --gold: #ffd166;
-    --red: #ff5c7a;
     --green: #63f0a1;
     --blue: #6bbcff;
     --purple: #c084fc;
@@ -326,39 +324,3 @@
 
   .hidden { display: none !important; }
 
-
-  .choice.premium {
-    border-color: rgba(255, 209, 102, .8);
-    background: linear-gradient(180deg, rgba(103, 69, 22, .95), rgba(42, 28, 16, .95));
-  }
-
-  .choice.premium:disabled {
-    opacity: .48;
-  }
-
-  .upgrade-list {
-    display: grid;
-    gap: 7px;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-
-  .upgrade-item {
-    border: 1px solid rgba(57, 48, 79, .8);
-    background: rgba(9, 8, 15, .35);
-    border-radius: 12px;
-    padding: 8px 10px;
-    color: var(--muted);
-    font-size: .82rem;
-  }
-
-  .upgrade-item strong {
-    color: var(--gold);
-  }
-
-  .footer-note {
-    color: var(--muted);
-    font-size: .75rem;
-    text-align: center;
-    padding-bottom: 22px;
-  }

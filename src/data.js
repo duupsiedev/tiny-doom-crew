@@ -126,27 +126,27 @@ const ENEMY_LIBRARY = {
   }
 };
 
-const SCALED_BOSS_NAMES = [
-  "Baron von Bonk",
-  "Count Snackula",
-  "The Toe Accountant",
-  "Sir Slaps-a-Lot",
-  "Duchess Oops",
-  "The Rent Gobbler",
-  "Mold King Gary",
-  "Professor Bad Choices",
-  "Lady Crumbstorm",
-  "The Dramatic Yam",
-  "Captain Taxes",
-  "Grandpa Thunderpants",
-  "The Vibe Auditor",
-  "Lord Wobbleknees",
-  "Queen Stompsalot",
-  "The Soup Pretender",
-  "Major Problem",
-  "The Dungeon Landlord",
-  "Archduke Noodlefist",
-  "The Unpaid Intern"
+const SCALED_BOSSES = [
+  { name: "Baron von Bonk", skillText: "Every hit arrives with unnecessary nobility." },
+  { name: "Count Snackula", skillText: "Counts your snacks, then steals the important ones." },
+  { name: "The Toe Accountant", skillText: "Audits footwork and charges interest in bruises." },
+  { name: "Sir Slaps-a-Lot", skillText: "Knighted for services to palm-based violence." },
+  { name: "Duchess Oops", skillText: "Trips into victory with alarming consistency." },
+  { name: "The Rent Gobbler", skillText: "Collects monthly payments in panic." },
+  { name: "Mold King Gary", skillText: "Royal, fuzzy, and bad for ventilation." },
+  { name: "Professor Bad Choices", skillText: "Teaches advanced regret with lab credits." },
+  { name: "Lady Crumbstorm", skillText: "Leaves a trail and calls it strategy." },
+  { name: "The Dramatic Yam", skillText: "Monologues before every root-based attack." },
+  { name: "Captain Taxes", skillText: "Deducts morale before damage is calculated." },
+  { name: "Grandpa Thunderpants", skillText: "Moves slowly until the room becomes weather." },
+  { name: "The Vibe Auditor", skillText: "Finds your build suspiciously cheerful." },
+  { name: "Lord Wobbleknees", skillText: "Unstable stance, stable hatred." },
+  { name: "Queen Stompsalot", skillText: "Issues royal decrees directly to the floor." },
+  { name: "The Soup Pretender", skillText: "Claims to be broth. Hits like furniture." },
+  { name: "Major Problem", skillText: "Promoted for being everyone else's issue." },
+  { name: "The Dungeon Landlord", skillText: "Raises the stakes and calls it maintenance." },
+  { name: "Archduke Noodlefist", skillText: "Flexible title. Questionable hands." },
+  { name: "The Unpaid Intern", skillText: "No benefits, all resentment." }
 ];
 
 const RARITIES = [

@@ -55,14 +55,6 @@ function applyTeamBonusesToAll(keepHpRatio = true) {
   game.party.forEach(hero => applyAllBonusesToHero(hero, keepHpRatio));
 }
 
-function recruitHero(id) {
-  if (hasHero(id)) return game.party.find(h => h.id === id);
-  const hero = HERO_LIBRARY[id].make();
-  game.party.push(hero);
-  applyAllBonusesToHero(hero, false);
-  return hero;
-}
-
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
@@ -70,9 +62,7 @@ function round2(n) {
 function cloneEnemy(id, floor) {
   const t = ENEMY_LIBRARY[id];
 
-  // Enemy scaling v0.3.6:
-  // Halfway between the harsh old curve and the softer v0.3.5 curve,
-  // plus tiny speed scaling so late-game enemies still get turns.
+  // Enemy scaling: floor growth plus win pressure so late-game enemies still get turns.
   const winScale = enemyWinScale(t.boss);
   const hpScale = (1 + (floor - 1) * (t.boss ? 0.122 : 0.158)) * winScale;
   const atkScale = (1 + (floor - 1) * (t.boss ? 0.092 : 0.118)) * winScale;
@@ -157,15 +147,17 @@ function makeWave(floor) {
 function makeScaledBoss(floor) {
   const era = Math.floor(floor / 5);
   const pressure = enemyWinScale(true);
-  const name = SCALED_BOSS_NAMES[(era - 3) % SCALED_BOSS_NAMES.length] || `Boss Blob ${era}`;
+  const bossProfile = SCALED_BOSSES[(era - 3) % SCALED_BOSSES.length] || {
+    name: `Dungeon Problem ${era}`,
+    skillText: "The dungeon ran out of paperwork, but not problems."
+  };
 
-  // Stronger than v0.3.5, softer than the original wall-of-doom.
   const maxHp = Math.round(225 * (1 + era * 0.48) * (1 + floor * 0.03) * pressure);
   const spd = round2(.78 + era * .0198 + floor * .0018);
 
   return {
     id: "scaledBoss",
-    name,
+    name: bossProfile.name,
     emoji: "🧱",
     team: "enemy",
     maxHp,
@@ -174,7 +166,7 @@ function makeScaledBoss(floor) {
     def: Math.round(3 + era * 1.25),
     spd,
     boss: true,
-    skillText: "A scaling boss. Less impossible, still rude.",
+    skillText: bossProfile.skillText,
     cooldown: attackDelay(spd),
     attacks: 0,
     shield: 0
@@ -321,7 +313,6 @@ function winBattle() {
 
   addLog(`Victory! The crew steals ${fmtNumber(gold)} gold and one questionable sandwich${defeatedBoss ? " from the boss stash" : ""}.`, "important");
 
-  // v0.3.5: Floor 10 is no longer the end. Keep pushing until the dungeon says sorry.
   if (game.floor === 10) {
     addLog("Prototype milestone cleared: Floor 10 beaten. The dungeon grows a second chin.", "weird");
   }
@@ -342,9 +333,4 @@ function loseBattle() {
   document.getElementById("messageBox").textContent = "Your party fell. Reset the run and try a different upgrade path.";
   saveGame(true);
   render();
-}
-
-function showWinPrototype() {
-  game.waitingForUpgrade = false;
-  document.getElementById("messageBox").innerHTML = "You beat Floor 10. The Snackromancer has filed a complaint with HR.";
 }

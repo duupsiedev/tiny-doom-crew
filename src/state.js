@@ -8,7 +8,6 @@ function newGame() {
     enemies: [],
     inBattle: false,
     waitingForUpgrade: false,
-    wonPrototype: false,
     global: {
       goldMult: 1,
       luck: 0,
