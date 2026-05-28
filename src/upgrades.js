@@ -49,7 +49,7 @@ function getEffectiveLuck() {
 }
 
 function availableRarities() {
-  const luck = getEffectiveLuck();
+  const luck = getLuck();
   return RARITIES.filter(r =>
     r.id !== "mystical" || luck >= LUCK_MYSTICAL_UNLOCK
   ).filter(r =>
@@ -112,7 +112,7 @@ function withRarity(choice, rarity) {
 }
 
 function uniqueChance() {
-  return Math.min(.75, UNIQUE_BASE_CHANCE * (1 + getEffectiveLuck() * .5));
+  return Math.min(.5, UNIQUE_BASE_CHANCE + getLuck() * .005);
 }
 
 function rarityOddsText(bossReward = false) {
@@ -234,11 +234,11 @@ function buildGlobalUpgradePool(bossReward = false) {
   const shieldAmount = scaledAmount(12, "maxHp", shieldRarity);
   pool.push(maybeAddUnique(withRarity({
     kind: "team",
-    title: `Team: +${shieldAmount} Start Shield`,
+    title: `Team: +${fmtNumber(shieldAmount)} Start Shield`,
     desc: "Every hero starts combat with extra shield. New recruits benefit too.",
     apply: () => {
       game.global.startShield += shieldAmount;
-      ledger(`${rarityLabel(shieldRarity)} team gained +${shieldAmount} starting shield.`);
+      ledger(`${rarityLabel(shieldRarity)} team gained +${fmtNumber(shieldAmount)} starting shield.`);
     }
   }, shieldRarity), shieldRarity));
 
@@ -246,11 +246,11 @@ function buildGlobalUpgradePool(bossReward = false) {
   const goldPercent = scaledAmount(25, "maxHp", goldRarity);
   pool.push(maybeAddUnique(withRarity({
     kind: "team",
-    title: `Treasure Nose: +${goldPercent}% Gold`,
+    title: `Treasure Nose: +${fmtNumber(goldPercent)}% Gold`,
     desc: "More gold means more paid training. The capitalism rat approves.",
     apply: () => {
       game.global.goldMult *= 1 + goldPercent / 100;
-      ledger(`${rarityLabel(goldRarity)} gold drops increased by ${goldPercent}%.`);
+      ledger(`${rarityLabel(goldRarity)} gold drops increased by ${fmtNumber(goldPercent)}%.`);
     }
   }, goldRarity), goldRarity));
 
@@ -320,7 +320,7 @@ function buildGoldTrainingChoice() {
       candidates.push(maybeAddUnique({
         kind: "gold-personal",
         title: `Gold Training: ${hero.name} +${displayAmount(stat, amount)} ${statLabel(stat)}`,
-        desc: `Costs ${cost} gold. Double-strength personal stat training.`,
+        desc: `Costs ${fmtNumber(cost)} gold. Double-strength personal stat training.`,
         cost,
         apply: () => {
           hero.personalBonus[stat] += amount;
@@ -328,7 +328,7 @@ function buildGoldTrainingChoice() {
           game.gold -= cost;
           game.goldPurchaseCount = (game.goldPurchaseCount || 0) + 1;
           game.goldChoicePurchased = true;
-          ledger(`Gold personal training: ${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${cost} gold.`);
+          ledger(`Gold personal training: ${hero.name} gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${fmtNumber(cost)} gold.`);
         }
       }, uniqueRarity, hero, stat));
     }
@@ -341,7 +341,7 @@ function buildGoldTrainingChoice() {
     candidates.push(maybeAddUnique({
       kind: "gold-team",
       title: `Gold Team Drill: +${displayAmount(stat, amount)} ${statLabel(stat)} Team`,
-      desc: `Costs ${cost} gold. Double-strength team upgrade. Retroactive and inherited by new recruits.`,
+      desc: `Costs ${fmtNumber(cost)} gold. Double-strength team upgrade. Retroactive and inherited by new recruits.`,
       cost,
       apply: () => {
         game.global.teamBonus[stat] += amount;
@@ -349,7 +349,7 @@ function buildGoldTrainingChoice() {
         game.gold -= cost;
         game.goldPurchaseCount = (game.goldPurchaseCount || 0) + 1;
         game.goldChoicePurchased = true;
-        ledger(`Gold team drill: team gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${cost} gold.`);
+        ledger(`Gold team drill: team gained +${displayAmount(stat, amount)} ${statLabel(stat)} for ${fmtNumber(cost)} gold.`);
       }
     }, uniqueRarity));
   }
@@ -358,14 +358,14 @@ function buildGoldTrainingChoice() {
   candidates.push(maybeAddUnique({
     kind: "gold-team",
     title: "Gold Team Drill: +24 Start Shield",
-    desc: `Costs ${cost} gold. Double-strength starting shield for every hero.`,
+    desc: `Costs ${fmtNumber(cost)} gold. Double-strength starting shield for every hero.`,
     cost,
     apply: () => {
       game.global.startShield += 24;
       game.gold -= cost;
       game.goldPurchaseCount = (game.goldPurchaseCount || 0) + 1;
       game.goldChoicePurchased = true;
-      ledger(`Gold team drill: team gained +24 starting shield for ${cost} gold.`);
+      ledger(`Gold team drill: team gained +24 starting shield for ${fmtNumber(cost)} gold.`);
     }
   }, shieldUniqueRarity));
 
@@ -422,12 +422,12 @@ function buyGoldTraining() {
   const cost = choice.cost || goldTrainingCost();
 
   if (game.gold < cost) {
-    addLog(`Need ${cost} gold for paid training. The trainer refuses payment in vibes.`, "bad");
+    addLog(`Need ${fmtNumber(cost)} gold for paid training. The trainer refuses payment in vibes.`, "bad");
     return;
   }
 
   choice.apply();
-  addLog(`Paid upgrade bought: ${choice.title}. Next paid training will cost ${goldTrainingCost()} gold.`, "important");
+  addLog(`Paid upgrade bought: ${choice.title}. Next paid training will cost ${fmtNumber(goldTrainingCost())} gold.`, "important");
   saveGame(true);
   render();
 }
@@ -437,7 +437,7 @@ function hasHero(id) {
 }
 
 function displayAmount(stat, amount) {
-  return stat === "spd" ? amount.toFixed(2) : amount;
+  return stat === "spd" ? amount.toFixed(2) : fmtNumber(amount);
 }
 
 function statLabel(stat) {

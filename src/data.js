@@ -170,6 +170,22 @@ function scaledAmount(amount, stat, rarity = null, isLuck = false) {
   return stat === "spd" ? round2(scaled) : Math.max(1, Math.round(scaled));
 }
 
+function fmtNumber(value, decimals = 1) {
+  if (!Number.isFinite(value)) return "0";
+
+  const sign = value < 0 ? "-" : "";
+  const n = Math.abs(value);
+  if (n < 1000) {
+    return sign + (Number.isInteger(n) ? String(n) : n.toFixed(decimals).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1"));
+  }
+
+  const suffixes = ["", "k", "m", "b", "t", "q", "Q", "s", "S", "o", "n", "d"];
+  const tier = Math.min(Math.floor(Math.log10(n) / 3), suffixes.length - 1);
+  const scaled = n / Math.pow(1000, tier);
+  const fixed = scaled >= 100 ? scaled.toFixed(0) : scaled >= 10 ? scaled.toFixed(1) : scaled.toFixed(decimals);
+  return sign + fixed.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1") + suffixes[tier];
+}
+
 const GOLD_TRAINING_BASE_COST = 100;
 const GOLD_TRAINING_LINEAR = 20;
 const GOLD_TRAINING_MULT = 1.12;

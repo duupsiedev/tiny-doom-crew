@@ -108,7 +108,7 @@ function attackDelay(speed) {
 
 function enemyWinScale(boss = false) {
   const wins = Math.max(0, (game.floor || 1) - 1);
-  return 1 + wins * (boss ? .01 : .015);
+  return 1 + wins * (boss ? .01 : .02);
 }
 
 function startBattle() {
@@ -231,7 +231,7 @@ function heroAction(hero) {
     const target = weakest(game.party);
     const heal = Math.round(12 + hero.atk * .75);
     target.hp = Math.min(target.maxHp, target.hp + heal);
-    addLog(`${hero.emoji} ${hero.name} patches ${target.name} for ${heal} HP. Divine duct tape.`, "good");
+    addLog(`${hero.emoji} ${hero.name} patches ${target.name} for ${fmtNumber(heal)} HP. Divine duct tape.`, "good");
     return;
   }
 
@@ -247,7 +247,7 @@ function heroAction(hero) {
   }
 
   applyDamage(target, damage);
-  addLog(`${hero.emoji} ${hero.name} attacks ${target.emoji} ${target.name} for ${damage}${crit ? " CRIT" : ""}.`, crit ? "good" : "");
+  addLog(`${hero.emoji} ${hero.name} attacks ${target.emoji} ${target.name} for ${fmtNumber(damage)}${crit ? " CRIT" : ""}.`, crit ? "good" : "");
 }
 
 function enemyAction(enemy) {
@@ -263,7 +263,7 @@ function enemyAction(enemy) {
   }
 
   applyDamage(target, damage);
-  addLog(`${enemy.emoji} ${enemy.name} targets ${target.emoji} ${target.name} for ${damage}.`, "bad");
+  addLog(`${enemy.emoji} ${enemy.name} targets ${target.emoji} ${target.name} for ${fmtNumber(damage)}.`, "bad");
 }
 
 function chooseAggroTarget(team) {
@@ -318,7 +318,7 @@ function winBattle() {
   game.gold += gold;
   game.bestFloor = Math.max(game.bestFloor, game.floor + 1);
 
-  addLog(`Victory! The crew steals ${gold} gold and one questionable sandwich${defeatedBoss ? " from the boss stash" : ""}.`, "important");
+  addLog(`Victory! The crew steals ${fmtNumber(gold)} gold and one questionable sandwich${defeatedBoss ? " from the boss stash" : ""}.`, "important");
 
   // v0.3.5: Floor 10 is no longer the end. Keep pushing until the dungeon says sorry.
   if (game.floor === 10) {
