@@ -157,6 +157,7 @@ function makeWave(floor) {
 function makeScaledBoss(floor) {
   const era = Math.floor(floor / 5);
   const pressure = enemyWinScale(true);
+  const name = SCALED_BOSS_NAMES[(era - 3) % SCALED_BOSS_NAMES.length] || `Boss Blob ${era}`;
 
   // Stronger than v0.3.5, softer than the original wall-of-doom.
   const maxHp = Math.round(225 * (1 + era * 0.48) * (1 + floor * 0.03) * pressure);
@@ -164,7 +165,7 @@ function makeScaledBoss(floor) {
 
   return {
     id: "scaledBoss",
-    name: `Boss Blob ${era}`,
+    name,
     emoji: "🧱",
     team: "enemy",
     maxHp,

@@ -126,6 +126,29 @@ const ENEMY_LIBRARY = {
   }
 };
 
+const SCALED_BOSS_NAMES = [
+  "Baron von Bonk",
+  "Count Snackula",
+  "The Toe Accountant",
+  "Sir Slaps-a-Lot",
+  "Duchess Oops",
+  "The Rent Gobbler",
+  "Mold King Gary",
+  "Professor Bad Choices",
+  "Lady Crumbstorm",
+  "The Dramatic Yam",
+  "Captain Taxes",
+  "Grandpa Thunderpants",
+  "The Vibe Auditor",
+  "Lord Wobbleknees",
+  "Queen Stompsalot",
+  "The Soup Pretender",
+  "Major Problem",
+  "The Dungeon Landlord",
+  "Archduke Noodlefist",
+  "The Unpaid Intern"
+];
+
 const RARITIES = [
   { id: "common", label: "Common", statMult: 1, luckMult: null },
   { id: "rare", label: "Rare", statMult: 1.5, luckMult: 1 },
