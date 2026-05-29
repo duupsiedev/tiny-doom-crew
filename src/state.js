@@ -1,9 +1,11 @@
 function newGame() {
   const party = ["knight", "rogue", "cleric"].map(id => HERO_LIBRARY[id].make());
+  const modifier = randomRunModifier();
   return {
     floor: 1,
     gold: 0,
     bestFloor: 1,
+    modifierId: modifier.id,
     party,
     enemies: [],
     inBattle: false,

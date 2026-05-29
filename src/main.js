@@ -40,6 +40,7 @@ function repairSave(data) {
   merged.global = Object.assign(fresh.global, data.global || {});
   merged.global.teamBonus = Object.assign(fresh.global.teamBonus, (data.global && data.global.teamBonus) || {});
   merged.global.luck = Number.isFinite(merged.global.luck) ? merged.global.luck : 0;
+  if (!RUN_MODIFIERS.some(mod => mod.id === merged.modifierId)) merged.modifierId = randomRunModifier().id;
   merged.party = Array.isArray(data.party) ? data.party : fresh.party;
   ["knight", "rogue", "cleric"].forEach(id => {
     if (!merged.party.some(u => u.id === id)) merged.party.push(HERO_LIBRARY[id].make());

@@ -37,10 +37,10 @@ function applyAllBonusesToHero(hero, keepHpRatio = true) {
   const team = game.global.teamBonus || { maxHp: 0, atk: 0, def: 0, spd: 0 };
   const personal = hero.personalBonus || { maxHp: 0, atk: 0, def: 0, spd: 0 };
 
-  hero.maxHp = Math.max(1, Math.round((hero.baseMaxHp || hero.maxHp) + personal.maxHp + team.maxHp));
-  hero.atk = Math.max(1, Math.round((hero.baseAtk || hero.atk) + personal.atk + team.atk));
-  hero.def = Math.max(0, Math.round((hero.baseDef || hero.def) + personal.def + team.def));
-  hero.spd = Math.max(.2, round2((hero.baseSpd || hero.spd) + personal.spd + team.spd));
+  hero.maxHp = Math.max(1, Math.round(((hero.baseMaxHp || hero.maxHp) + personal.maxHp + team.maxHp) * modMult("heroHp")));
+  hero.atk = Math.max(1, Math.round(((hero.baseAtk || hero.atk) + personal.atk + team.atk) * modMult("heroAtk")));
+  hero.def = Math.max(0, Math.round(((hero.baseDef || hero.def) + personal.def + team.def) * modMult("heroDef")));
+  hero.spd = Math.max(.2, round2(((hero.baseSpd || hero.spd) + personal.spd + team.spd) * modMult("heroSpd")));
 
   if (keepHpRatio) {
     hero.hp = Math.max(1, Math.min(hero.maxHp, Math.round(hero.maxHp * ratio)));
@@ -64,13 +64,13 @@ function cloneEnemy(id, floor) {
 
   // Enemy scaling: floor growth plus win pressure so late-game enemies still get turns.
   const winScale = enemyWinScale(t.boss);
-  const hpScale = (1 + (floor - 1) * (t.boss ? 0.122 : 0.158)) * winScale;
-  const atkScale = (1 + (floor - 1) * (t.boss ? 0.092 : 0.118)) * winScale;
+  const hpScale = (1 + (floor - 1) * (t.boss ? 0.122 : 0.158)) * winScale * modMult("enemyHp");
+  const atkScale = (1 + (floor - 1) * (t.boss ? 0.092 : 0.118)) * winScale * modMult("enemyAtk");
   const defBonus = Math.floor(floor / (t.boss ? 5 : 4));
 
   // Teeny speed growth. No hard cap, just a deliberately slow curve.
   const speedScale = 1 + Math.max(0, floor - 1) * (t.boss ? 0.0054 : 0.0072);
-  const spd = round2(t.spd * speedScale);
+  const spd = round2(t.spd * speedScale * modMult("enemySpd"));
 
   const maxHp = Math.round(t.maxHp * hpScale);
 
@@ -152,8 +152,8 @@ function makeScaledBoss(floor) {
     skillText: "The dungeon ran out of paperwork, but not problems."
   };
 
-  const maxHp = Math.round(225 * (1 + era * 0.48) * (1 + floor * 0.03) * pressure);
-  const spd = round2(.78 + era * .0198 + floor * .0018);
+  const maxHp = Math.round(225 * (1 + era * 0.48) * (1 + floor * 0.03) * pressure * modMult("enemyHp"));
+  const spd = round2((.78 + era * .0198 + floor * .0018) * modMult("enemySpd"));
 
   return {
     id: "scaledBoss",
@@ -162,7 +162,7 @@ function makeScaledBoss(floor) {
     team: "enemy",
     maxHp,
     hp: maxHp,
-    atk: Math.round(14 * (1 + era * 0.255) * (1 + floor * 0.022) * pressure),
+    atk: Math.round(14 * (1 + era * 0.255) * (1 + floor * 0.022) * pressure * modMult("enemyAtk")),
     def: Math.round(3 + era * 1.25),
     spd,
     boss: true,
@@ -307,7 +307,7 @@ function winBattle() {
 
   const defeatedBoss = game.enemies.some(enemy => enemy.boss);
   const bossGoldMult = defeatedBoss ? 1.5 : 1;
-  const gold = Math.round((18 + game.floor * 7) * game.global.goldMult * bossGoldMult);
+  const gold = Math.round((18 + game.floor * 7) * game.global.goldMult * bossGoldMult * modMult("goldDrop"));
   game.gold += gold;
   game.bestFloor = Math.max(game.bestFloor, game.floor + 1);
 

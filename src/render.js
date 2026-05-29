@@ -7,6 +7,7 @@ function render() {
   if (!game.global) game.global = newGame().global;
   if (!game.global.teamBonus) game.global.teamBonus = { maxHp: 0, atk: 0, def: 0, spd: 0 };
   if (typeof game.global.luck !== "number") game.global.luck = 0;
+  if (!RUN_MODIFIERS.some(mod => mod.id === game.modifierId)) game.modifierId = randomRunModifier().id;
 
   document.getElementById("floorText").textContent = game.floor;
   document.getElementById("goldText").textContent = fmtNumber(Math.floor(game.gold));
@@ -20,6 +21,8 @@ function render() {
 
   document.getElementById("partyPower").textContent = `${fmtNumber(Math.round(teamPower(game.party)))} power`;
   document.getElementById("enemyPower").textContent = game.enemies.length ? `${fmtNumber(Math.round(teamPower(game.enemies)))} power` : "";
+  const modifier = getRunModifier();
+  document.getElementById("modifierBox").textContent = `Modifier: ${modifier.rarity.toUpperCase()} - ${modifier.name} - ${modifier.desc}`;
 
   renderUnits();
   renderChoices();
@@ -94,7 +97,7 @@ function renderChoices() {
 
   const freeChoices = (game.currentChoices || []).map((c, i) => `
     <button class="choice ${c.rarity || "common"} ${c.unique ? "unique" : ""}" onclick="chooseUpgrade(${i})">
-      <strong>${c.kind === "team" ? "🌐 " : c.kind === "personal" ? "🎯 " : "➕ "}${c.title}</strong>
+      <strong>${c.kind === "team" ? "🌐 " : c.kind === "personal" ? "🎯 " : "➕ "}${c.title}${c.unique ? `<span class="unique-tag">UNIQUE</span>` : ""}</strong>
       <small><span class="rarity-tag ${c.rarity || "common"}">${c.rarityLabel || rarityLabel(c.rarity)}</span>${c.desc}</small>
     </button>
   `).join("");
@@ -102,7 +105,7 @@ function renderChoices() {
   const gold = game.currentGoldChoice;
   const goldHtml = gold ? `
     <button class="choice ${gold.unique ? "unique" : ""}" onclick="buyGoldTraining()" ${game.gold < (gold.cost || goldTrainingCost()) || game.goldChoicePurchased ? "disabled" : ""}>
-      <strong>💰 ${game.goldChoicePurchased ? "Gold Training Purchased" : gold.title}</strong>
+      <strong>💰 ${game.goldChoicePurchased ? "Gold Training Purchased" : gold.title}${gold.unique && !game.goldChoicePurchased ? `<span class="unique-tag">UNIQUE</span>` : ""}</strong>
       <small>${game.goldChoicePurchased ? "Already bought for this floor." : `${gold.desc} You have ${fmtNumber(Math.floor(game.gold))} gold. Next cost after purchase scales upward.`}</small>
     </button>
   ` : "";

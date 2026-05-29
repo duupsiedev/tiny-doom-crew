@@ -279,6 +279,20 @@
   .rarity-tag.mystical { color: var(--purple); }
   .rarity-tag.legend { color: var(--orange); }
 
+  .unique-tag {
+    display: inline-block;
+    color: #ffffff;
+    background: rgba(255, 159, 67, .28);
+    border: 1px solid rgba(255, 209, 102, .65);
+    border-radius: 999px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    font-size: .66rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    vertical-align: 1px;
+  }
+
   .log {
     height: 220px;
     overflow-y: auto;
@@ -304,6 +318,14 @@
     color: var(--muted);
     font-size: .86rem;
     line-height: 1.35;
+  }
+
+  .modifier-box {
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 800;
+    line-height: 1.35;
+    margin-top: 8px;
   }
 
   .victory-banner {

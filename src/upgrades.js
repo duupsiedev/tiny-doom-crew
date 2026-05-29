@@ -44,6 +44,8 @@ function availableRarities() {
 }
 
 function rollRarity(allowLuck = false, bossReward = false) {
+  if (getRunModifier().forceRarity) return getRunModifier().forceRarity;
+
   const luck = getEffectiveLuck();
   const available = availableRarities();
   const baseWeights = {
@@ -102,6 +104,8 @@ function uniqueChance() {
 }
 
 function rarityOddsText(bossReward = false) {
+  if (getRunModifier().forceRarity) return `${rarityLabel(getRunModifier().forceRarity)} 100%`;
+
   const luck = getEffectiveLuck();
   const weights = {
     common: 70,
@@ -170,7 +174,14 @@ function teamAmount(stat, paid = false, rarity = null) {
 
 function luckAmount(rarity) {
   const info = RARITY_BY_ID[rarity] || RARITY_BY_ID.rare;
-  return round2(BASE_LUCK * (info.luckMult || 1));
+  return round2(BASE_LUCK * (info.luckMult || 1) * modMult("luckAugmentAmount"));
+}
+
+function addWeightedChoice(pool, choice, extraCopies = 1) {
+  pool.push(choice);
+  for (let i = 1; i < extraCopies; i++) {
+    pool.push(Object.assign({}, choice));
+  }
 }
 
 function buildPersonalUpgradePool(bossReward = false) {
@@ -229,8 +240,8 @@ function buildGlobalUpgradePool(bossReward = false) {
   }, shieldRarity), shieldRarity));
 
   const goldRarity = rollRarity(false, bossReward);
-  const goldPercent = scaledAmount(25, "maxHp", goldRarity);
-  pool.push(maybeAddUnique(withRarity({
+  const goldPercent = Math.max(1, Math.round(scaledAmount(25, "maxHp", goldRarity) * modMult("goldAugmentAmount")));
+  const goldChoice = maybeAddUnique(withRarity({
     kind: "team",
     title: `Treasure Nose: +${fmtNumber(goldPercent)}% Gold`,
     desc: "More gold means more paid training. The capitalism rat approves.",
@@ -238,26 +249,48 @@ function buildGlobalUpgradePool(bossReward = false) {
       game.global.goldMult *= 1 + goldPercent / 100;
       ledger(`${rarityLabel(goldRarity)} gold drops increased by ${fmtNumber(goldPercent)}%.`);
     }
-  }, goldRarity), goldRarity));
+  }, goldRarity), goldRarity);
+  addWeightedChoice(pool, goldChoice, Math.max(1, Math.round(modMult("goldAugmentWeight"))));
 
   const luckRarity = rollRarity(true, bossReward);
-  const luck = luckAmount(luckRarity);
-  pool.push(maybeAddUnique(withRarity({
-    kind: "luck",
-    title: `Lucky Charm: +${luck} Luck`,
-    desc: `Unlocks Mystical at ${LUCK_MYSTICAL_UNLOCK} Luck and Legend at ${LUCK_LEGEND_UNLOCK} Luck. Luck scales gently by rarity.`,
-    apply: () => {
-      game.global.luck = getLuck() + luck;
-      ledger(`${rarityLabel(luckRarity)} luck increased by ${luck}.`);
-    }
-  }, luckRarity), luckRarity));
+  let luckChoice;
+  if (getRunModifier().luckAsAllStats) {
+    const amounts = {
+      maxHp: teamAmount("maxHp", false, "legend"),
+      atk: teamAmount("atk", false, "legend"),
+      def: teamAmount("def", false, "legend"),
+      spd: teamAmount("spd", false, "legend")
+    };
+    luckChoice = maybeAddUnique(withRarity({
+      kind: "luck",
+      title: `Legend's Luck: +${displayAmount("maxHp", amounts.maxHp)} HP, +${displayAmount("atk", amounts.atk)} ATK, +${displayAmount("def", amounts.def)} DEF, +${displayAmount("spd", amounts.spd)} SPD Team`,
+      desc: "Luck becomes a legendary all-stat team boost for this run.",
+      apply: () => {
+        for (const stat of Object.keys(amounts)) game.global.teamBonus[stat] += amounts[stat];
+        applyTeamBonusesToAll(true);
+        ledger(`Legend's Luck boosted every team stat.`);
+      }
+    }, "legend"), "legend");
+  } else {
+    const luck = luckAmount(luckRarity);
+    luckChoice = maybeAddUnique(withRarity({
+      kind: "luck",
+      title: `Lucky Charm: +${luck} Luck`,
+      desc: `Unlocks Mystical at ${LUCK_MYSTICAL_UNLOCK} Luck and Legend at ${LUCK_LEGEND_UNLOCK} Luck. Luck scales gently by rarity.`,
+      apply: () => {
+        game.global.luck = getLuck() + luck;
+        ledger(`${rarityLabel(luckRarity)} luck increased by ${luck}.`);
+      }
+    }, luckRarity), luckRarity);
+  }
+  addWeightedChoice(pool, luckChoice, Math.max(1, Math.round(modMult("luckAugmentWeight"))));
 
   return pool;
 }
 
 function goldTrainingCost() {
   const n = game.goldPurchaseCount || 0;
-  return Math.round((GOLD_TRAINING_BASE_COST + GOLD_TRAINING_LINEAR * n) * Math.pow(GOLD_TRAINING_MULT, n));
+  return Math.round((GOLD_TRAINING_BASE_COST + GOLD_TRAINING_LINEAR * n) * Math.pow(GOLD_TRAINING_MULT, n) * modMult("goldTrainingCost"));
 }
 
 function buildGoldTrainingChoice() {
@@ -363,9 +396,8 @@ function chooseUpgrade(index) {
   game.bossRewardPending = false;
   game.currentChoices = [];
   game.currentGoldChoice = null;
-  document.getElementById("messageBox").textContent = "Upgrade locked in. Start the next fight when ready.";
   saveGame(true);
-  render();
+  startBattle();
 }
 
 function buyGoldTraining() {
